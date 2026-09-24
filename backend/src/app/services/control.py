@@ -14,6 +14,7 @@ from decimal import Decimal
 from app.core.clock import business_date, parse_at, wall_now, wall_now_iso
 from app.core.ids import new_id
 from app.core.money import dec, money_str
+from app.pricing.params import DEFAULT_OPERATING_BAND
 from app.services import audit, config_service
 from app.services.cycle import price_all, publish
 from app.services.errors import AppError, infeasible, invalid_id
@@ -56,10 +57,17 @@ def update_bounds(conn: sqlite3.Connection, entity_id: str, changes: dict, actor
 
 
 def update_engine(conn: sqlite3.Connection, actor: str, reason: str, factor_bounds: dict | None,
-                  auto_band_pct: str | None) -> dict:
+                  auto_band_pct: str | None, band_below_pct: str | None = None, band_above_pct: str | None = None) -> dict:
+    extra = None
+    if band_below_pct is not None or band_above_pct is not None:
+        cur = json.loads(config_service.active_engine_row(conn)["factor_bounds"]).get("operating_band", DEFAULT_OPERATING_BAND)
+        below = str((Decimal(100) - Decimal(band_below_pct)) / 100) if band_below_pct is not None else cur["below"]
+        above = str((Decimal(100) + Decimal(band_above_pct)) / 100) if band_above_pct is not None else cur["above"]
+        extra = {"operating_band": {"below": below, "above": above}}
     _tx(conn)
     try:
-        v = config_service.new_engine_version(conn, actor, reason, factor_bounds=factor_bounds, auto_band_pct=auto_band_pct)
+        v = config_service.new_engine_version(conn, actor, reason, factor_bounds=factor_bounds, auto_band_pct=auto_band_pct,
+                                              extra=extra)
         _done(conn, True)
     except BaseException:
         _done(conn, False)

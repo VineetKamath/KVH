@@ -162,7 +162,7 @@ def get_engine(conn: sqlite3.Connection = Depends(db)) -> dict:
 @admin.put("/engine-config")
 def put_engine(req: M.EngineUpdate, actor: str = Depends(require_admin), conn: sqlite3.Connection = Depends(db)) -> dict:
     fb = {k: v.model_dump() for k, v in (req.factor_bounds or {}).items()}
-    return control.update_engine(conn, actor, req.reason, fb or None, req.auto_band_pct)
+    return control.update_engine(conn, actor, req.reason, fb or None, req.auto_band_pct, req.band_below_pct, req.band_above_pct)
 
 
 @admin.post("/killswitch")

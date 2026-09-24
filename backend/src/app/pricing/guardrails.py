@@ -1,7 +1,9 @@
 """Guardrail chain (ARCHITECTURE §6.3). Pure, Decimal only.
 
 Order: weekly movement → daily movement → hard floor/ceiling → rounding (inward).
-Hard bounds win over everything. `clamp_bound` is the LAST guardrail in the chain that changed the
+Hard bounds win over everything. The floor/ceiling used is the hotel's price_bounds pair, tightened (never
+loosened) by the optional operating band around the reference rate (D-18); a clamp there is still reported
+as `floor`/`ceiling` (canonical enum) with `basis = "operating_band"` in the chain. `clamp_bound` is the LAST guardrail in the chain that changed the
 price. Rounding alone never counts as a clamp, and rounding is done inward to the full allowed
 interval, so it can never breach floor, ceiling or a movement cap (docs/DECISIONS.md D-03).
 """
@@ -28,10 +30,24 @@ def _sane(value: Decimal, fallback: Decimal) -> Decimal:
     return value if isinstance(value, Decimal) and value.is_finite() and value > ZERO else fallback
 
 
-def apply_chain(raw: Decimal, bounds: Bounds, daily_anchor: Decimal, weekly_anchor: Decimal) -> GuardrailResult:
+def effective_bounds(bounds: Bounds, band: tuple[Decimal, Decimal] | None) -> tuple[Decimal, Decimal, bool, bool]:
+    """(floor, ceiling, floor_from_band, ceiling_from_band). The band only ever narrows the hotel's pair;
+    if it does not overlap it (a reference far outside the hotel's bounds), the hotel's pair is used alone."""
     floor, ceiling = bounds.floor, bounds.ceiling
     if floor > ceiling:  # a mis-configured pair is treated as its sorted interval, never as "no bound"
         floor, ceiling = ceiling, floor
+    if band is None:
+        return floor, ceiling, False, False
+    lo, hi = _sane(band[0], floor), _sane(band[1], ceiling)
+    f2, c2 = max(floor, lo), min(ceiling, hi)
+    if f2 > c2:
+        return floor, ceiling, False, False
+    return f2, c2, f2 != floor, c2 != ceiling
+
+
+def apply_chain(raw: Decimal, bounds: Bounds, daily_anchor: Decimal, weekly_anchor: Decimal,
+                band: tuple[Decimal, Decimal] | None = None) -> GuardrailResult:
+    floor, ceiling, floor_band, ceiling_band = effective_bounds(bounds, band)
     hard = (floor, ceiling)
     x = _sane(raw, floor)
     a7 = _sane(weekly_anchor, floor)
@@ -58,7 +74,8 @@ def apply_chain(raw: Decimal, bounds: Bounds, daily_anchor: Decimal, weekly_anch
     y = clamp(x, *hard)
     if y != x:
         name = "floor" if y == floor else "ceiling"
-        chain.append(ChainStep(name, x, y))
+        from_band = floor_band if name == "floor" else ceiling_band
+        chain.append(ChainStep(name, x, y, "operating_band" if from_band else "hotel_bound"))
         last_bound, bound_value = name, y
     x = quantize(y)
 
@@ -83,4 +100,6 @@ def apply_chain(raw: Decimal, bounds: Bounds, daily_anchor: Decimal, weekly_anch
         chain=tuple(chain),
         allowed_lo=allowed[0],
         allowed_hi=allowed[1],
+        floor_used=floor if band is not None else None,
+        ceiling_used=ceiling if band is not None else None,
     )

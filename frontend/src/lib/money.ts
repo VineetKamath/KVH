@@ -51,3 +51,11 @@ export function toPlotNumber(amount: string | null | undefined): number | null {
 export function sumMoney(values: string[]): string {
   return values.reduce((acc, v) => acc.plus(new Decimal(v)), new Decimal(0)).toFixed(2);
 }
+
+/** Traveller-facing display: drops a zero fraction ("₹4,940" not "₹4,940.00"); keeps paise when they exist. */
+export function formatPrice(amount: string, currency: string, locale: Locale = "en-IN"): string {
+  const d = new Decimal(amount);
+  if (!d.isInteger()) return formatMoney(amount, currency, locale);
+  const fmt = new Intl.NumberFormat(intlLocale(locale), { style: "currency", currency, minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  return fmt.format(d.toFixed(0) as unknown as number);
+}

@@ -49,7 +49,11 @@ export default function Simulator() {
 
         <section className="card p-5">
           <p className="eyebrow">Scenario B · validated config</p>
-          {!parse.data && <p className="mt-3 text-[13px] text-ink-muted">Nothing parsed yet.</p>}
+          {!parse.data && (
+            <div className="mt-4 rounded-[3px] border border-dashed border-rule-strong px-5 py-8 text-center">
+              <p className="font-display text-[18px]">No scenario yet</p>
+              <p className="mx-auto mt-1 max-w-[42ch] text-[13px] text-ink-muted">Describe a change on the left. It is turned into a validated configuration (anything unknown is rejected, never guessed), then the real pricing engine runs today's settings (A) against yours (B) on the same data.</p>
+            </div>)}
           {parse.data && !parse.data.accepted && (
             <div className="mt-3 space-y-1">
               <Tag tone="vermilion">rejected, not coerced</Tag>

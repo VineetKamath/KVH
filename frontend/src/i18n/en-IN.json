@@ -1,9 +1,10 @@
 {
  "brand": "Rate Ledger",
- "tagline": "Honest prices for every night",
+ "tagline": "Dynamic pricing for hotels, on the record",
  "nav": {
-  "stays": "Stays",
-  "desk": "Revenue desk"
+  "stays": "Find a stay",
+  "desk": "Revenue desk",
+  "for_hotels": "For hotels"
  },
  "search": {
   "where": "Where are you staying?",
@@ -24,7 +25,14 @@
   "centre": "{{km}} km from centre",
   "price_trail": "90-night price trail",
   "choose": "See price",
-  "empty": "No rooms are bookable here yet."
+  "empty": "No rooms are bookable here yet.",
+  "meta": "{{count}} rooms · every price computed by the engine",
+  "first_night": "your first night",
+  "vs_prev": "vs night before",
+  "within": "Within hotel limits",
+  "lowest": "Lowest in 90 nights",
+  "range": "90-night range",
+  "pass": "Price pass"
  },
  "quote": {
   "boarding": "Price pass",
@@ -45,7 +53,11 @@
   "stay": "Stay",
   "low_confidence": "Demand is hard to read for these dates, so the price stays close to the base rate.",
   "source_llm": "Written by AI from the engine's numbers, checked digit by digit",
-  "source_template": "Written from the engine's numbers"
+  "source_template": "Written from the engine's numbers",
+  "reference": "Reference",
+  "held_badge": "Price held",
+  "issued": "Issued",
+  "route": "Stay"
  },
  "errors": {
   "generic": "Something went wrong. Please try again.",
@@ -59,5 +71,28 @@
   "hi": "हिन्दी",
   "kn": "ಕನ್ನಡ"
  },
- "footer": "Every price stays inside limits the hotel sets, and every number is computed by the pricing engine."
+ "footer": "Every price stays inside limits the hotel sets, and every number is computed by the pricing engine.",
+ "home": {
+  "kicker": "A transparent pricing engine for hotels",
+  "title_a": "Hotel prices that",
+  "title_b": "explain themselves.",
+  "lede": "Rate Ledger prices every room, every night, from demand, forecasts and events, and keeps each price inside limits the hotel has approved. Every price has a reason, a bound and an audit trail.",
+  "pipeline_label": "How every price is made",
+  "p_base": "Reference rate",
+  "p_demand": "Demand",
+  "p_forecast": "Forecast",
+  "p_event": "Event",
+  "p_limit": "Hotel limit",
+  "p_publish": "Published",
+  "specimen": "Specimen · illustrative, not live",
+  "specimen_note": "Open any room below to see its real, live breakdown.",
+  "search_title": "Find a stay and see why the price is what it is",
+  "live": "Ledger open · business date {{date}}",
+  "how_1_t": "Signals in",
+  "how_1_d": "Bookings, searches, cancellations, lead time and approved local events are read every business day.",
+  "how_2_t": "Engine prices",
+  "how_2_d": "Eight bounded factors adjust the room's reference rate. A forecast only moves the price as far as its evidence allows.",
+  "how_3_t": "Bounded & recorded",
+  "how_3_d": "Floor, ceiling and daily-move limits set by the hotel always win. Each price is stored with its reason and replays exactly."
+ }
 }

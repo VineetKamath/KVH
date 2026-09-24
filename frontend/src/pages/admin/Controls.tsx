@@ -8,7 +8,8 @@ import { formatMoney } from "../../lib/money";
 import { RoomPicker, useDesk } from "./Desk";
 
 type BoundsResp = { bounds: Record<string, string>; versions: Record<string, string>[] };
-type Engine = { version: number; auto_band_pct: string; kill_switch_active: boolean; config: { factor_bounds: Record<string, { lo: string; hi: string; enabled: boolean }> } };
+type Engine = { version: number; auto_band_pct: string; kill_switch_active: boolean; config: { factor_bounds: Record<string, { lo: string; hi: string; enabled: boolean }>; operating_band?: { below: string; above: string } } };
+const toPct = (m: string, sign: 1 | -1) => String(Math.round(sign * (Number(m) - 1) * 10000) / 100);
 type Override = { override_id: string; entity_id: string; from_date: string; to_date: string; price: string; currency: string; reason: string; expires_at: string; status: string };
 
 function Panel({ title, children, tone }: { title: string; children: React.ReactNode; tone?: "danger" }) {
@@ -87,7 +88,7 @@ function OverridesPanel() {
   return (
     <Panel title="Manual overrides">
       <p className="mb-3 text-[12px] text-ink-muted">Hold a price for chosen dates. An override needs a reason and an expiry, must sit inside the room's floor and ceiling, and is never counted as a clamp.</p>
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-[1fr_1fr_1fr_90px]">
+      <div className="grid grid-cols-2 gap-3 2xl:grid-cols-[1fr_1fr_1fr_90px]">
         <label className="field"><span>From</span><input type="date" className="input num" value={f.from} onChange={(e) => setF({ ...f, from: e.target.value })} /></label>
         <label className="field"><span>To</span><input type="date" className="input num" value={f.to} onChange={(e) => setF({ ...f, to: e.target.value })} /></label>
         <label className="field"><span>Price</span><input className="input num" placeholder="5555.00" value={f.price} onChange={(e) => setF({ ...f, price: e.target.value })} /></label>
@@ -118,8 +119,18 @@ function EnginePanel() {
   const q = useQuery({ queryKey: ["engine"], queryFn: () => api.admin.get<Engine>("/v1/engine-config") });
   const [band, setBand] = useState("");
   const [reason, setReason] = useState("");
-  useEffect(() => { if (q.data) setBand(q.data.auto_band_pct); }, [q.data]);
-  const save = useMutation({ mutationFn: () => api.admin.put("/v1/engine-config", { auto_band_pct: band, reason }), onSuccess: () => { setReason(""); qc.invalidateQueries(); } });
+  const [below, setBelow] = useState("");
+  const [above, setAbove] = useState("");
+  useEffect(() => {
+    if (!q.data) return;
+    setBand(q.data.auto_band_pct);
+    const ob = q.data.config.operating_band;
+    setBelow(ob ? toPct(ob.below, -1) : ""); setAbove(ob ? toPct(ob.above, 1) : "");
+  }, [q.data]);
+  const save = useMutation({
+    mutationFn: () => api.admin.put("/v1/engine-config", { auto_band_pct: band, reason,
+      ...(below ? { band_below_pct: below } : {}), ...(above ? { band_above_pct: above } : {}) }),
+    onSuccess: () => { setReason(""); qc.invalidateQueries(); } });
   if (!q.data) return <Skeleton />;
   const fb = q.data.config.factor_bounds;
   return (
@@ -130,13 +141,19 @@ function EnginePanel() {
           <tr key={k} className="border-t border-rule"><td className="py-1.5">{k.replaceAll("_", " ")}</td><td className="num">{v.lo}</td><td className="num">{v.hi}</td>
             <td>{v.enabled ? <Tag tone="teal">on</Tag> : <Tag>off</Tag>}</td></tr>))}</tbody>
       </table>
+      <div className="mt-4 grid grid-cols-3 gap-3">
+        <label className="field"><span>Auto-apply %</span><input className="input num" value={band} onChange={(e) => setBand(e.target.value)} /></label>
+        <label className="field"><span>Max % below ref.</span><input className="input num" value={below} onChange={(e) => setBelow(e.target.value)} /></label>
+        <label className="field"><span>Max % above ref.</span><input className="input num" value={above} onChange={(e) => setAbove(e.target.value)} /></label>
+      </div>
       <div className="mt-3 flex flex-wrap items-end gap-3">
-        <label className="field w-[140px]"><span>Auto-apply band %</span><input className="input num" value={band} onChange={(e) => setBand(e.target.value)} /></label>
         <label className="field min-w-[240px] flex-1"><span>Reason</span><input className="input" value={reason} onChange={(e) => setReason(e.target.value)} /></label>
         <Button disabled={reason.trim().length < 5 || save.isPending} onClick={() => save.mutate()}><Save size={14} strokeWidth={1.5} />Save v{q.data.version + 1}</Button>
       </div>
       {save.isError && <div className="mt-2"><ErrorNote error={save.error} /></div>}
-      <p className="mt-2 text-[12px] text-ink-muted">Factor bounds are edited through the what-if simulator first (§5), so every change is tested before it ships.</p>
+      <p className="mt-2 text-[12px] text-ink-muted">Operating band: the engine never publishes more than these percentages below or above
+        the night's reference rate (the hotel's rate card with its night-to-night noise removed). It only ever narrows the hotel's own
+        floor and ceiling. Factor bounds are edited through the What-if simulator first, so every change is tested before it ships.</p>
     </Panel>
   );
 }

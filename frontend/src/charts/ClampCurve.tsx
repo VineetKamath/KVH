@@ -36,7 +36,9 @@ export function ClampCurve({ points, currency, onSelect, selected }: {
   }, []);
 
   const geo = useMemo(() => {
-    const vals = points.flatMap((p) => [p.floor, p.ceiling, p.raw, p.published, p.pending?.price].filter(Boolean).map((v) => toPlotNumber(v!)!));
+    // scale to the limits that actually bind (the per-night operating band), not the far-away hotel bounds
+    const vals = points.flatMap((p) => [p.floor_used ?? p.floor, p.ceiling_used ?? p.ceiling, p.raw, p.published, p.pending?.price]
+      .filter(Boolean).map((v) => toPlotNumber(v!)!));
     const lo = Math.min(...vals), hi = Math.max(...vals);
     const pad = (hi - lo) * 0.06 || 1;
     const y0 = lo - pad, y1 = hi + pad;
@@ -51,10 +53,19 @@ export function ClampCurve({ points, currency, onSelect, selected }: {
   const { x, y, ih, ticks, y0, y1 } = geo;
   const yNum = (v: number) => M.t + ih - ((v - y0) / (y1 - y0)) * ih;
   const floor = points[0].floor, ceiling = points[0].ceiling;
+  const fl = (p: CurvePoint) => p.floor_used ?? p.floor, ce = (p: CurvePoint) => p.ceiling_used ?? p.ceiling;
+  const last = points[points.length - 1];
+  const hardInView = (v: string) => { const n = toPlotNumber(v)!; return n >= y0 && n <= y1; };
+  // stepped band: each night owns the half-interval either side of its x
+  const half = points.length > 1 ? (x(1) - x(0)) / 2 : 20;
+  const stepPath = (get: (p: CurvePoint) => string) =>
+    points.map((p, i) => `${i ? "L" : "M"}${x(i) - half},${y(get(p))} L${x(i) + half},${y(get(p))}`).join(" ");
+  const bandPath = `${stepPath(ce)} ${[...points].reverse().map((p, k) => { const i = points.length - 1 - k;
+    return `L${x(i) + half},${y(fl(p))} L${x(i) - half},${y(fl(p))}`; }).join(" ")} Z`;
   const clamped = points.filter((p) => p.clamp_status === "clamped" && p.clamp_bound);
   const step = Math.max(1, Math.round(points.length / 8));
   const hp = hover !== null ? points[hover] : null;
-  const summaryLabel = `Price curve for ${points.length} stay dates between ${formatMoney(floor, currency)} and ${formatMoney(ceiling, currency)}; ${clamped.length} clamped.`;
+  const summaryLabel = `Price curve for ${points.length} stay dates; allowed range per night shown as a band; hotel bounds ${formatMoney(floor, currency)} to ${formatMoney(ceiling, currency)}; ${clamped.length} clamped.`;
 
   const onKey = (e: React.KeyboardEvent) => {
     const i = hover ?? points.findIndex((p) => p.decision_id === selected);
@@ -75,14 +86,17 @@ export function ClampCurve({ points, currency, onSelect, selected }: {
     <div ref={wrap} className="relative w-full">
       <svg width={w} height={H} role="img" aria-label={summaryLabel} tabIndex={0} onKeyDown={onKey}
         onMouseLeave={() => setHover(null)} className="block outline-none">
-        {/* floor–ceiling band */}
-        <rect x={M.l} y={y(ceiling)} width={w - M.l - M.r} height={Math.max(0, y(floor) - y(ceiling))} fill="var(--band)" />
-        <line x1={M.l} x2={w - M.r} y1={y(ceiling)} y2={y(ceiling)} stroke="var(--saffron)" strokeDasharray="2 3" />
-        <line x1={M.l} x2={w - M.r} y1={y(floor)} y2={y(floor)} stroke="var(--teal)" strokeDasharray="2 3" />
-        <text x={w - M.r + 8} y={y(ceiling) + 4} className="num" fontSize="11" fill="var(--saffron-text)">ceiling</text>
-        <text x={w - M.r + 8} y={y(ceiling) + 17} className="num" fontSize="11" fill="var(--ink-muted)">{formatMoney(ceiling, currency, "en-IN", false).replace(/\.00$/, "")}</text>
-        <text x={w - M.r + 8} y={y(floor) + 4} className="num" fontSize="11" fill="var(--teal)">floor</text>
-        <text x={w - M.r + 8} y={y(floor) + 17} className="num" fontSize="11" fill="var(--ink-muted)">{formatMoney(floor, currency, "en-IN", false).replace(/\.00$/, "")}</text>
+        {/* the allowed range per night: hotel bounds narrowed by the operating band around the reference rate */}
+        <path d={bandPath} fill="var(--indigo)" fillOpacity={0.07} stroke="none" />
+        <path d={stepPath(ce)} fill="none" stroke="var(--saffron)" strokeWidth={0.9} strokeOpacity={0.55} />
+        <path d={stepPath(fl)} fill="none" stroke="var(--teal)" strokeWidth={0.9} strokeOpacity={0.55} />
+        <text x={w - M.r + 8} y={y(ce(last)) + 4} className="num" fontSize="11" fill="var(--saffron-text)">ceiling</text>
+        <text x={w - M.r + 8} y={y(ce(last)) + 17} className="num" fontSize="11" fill="var(--ink-muted)">{formatMoney(ce(last), currency, "en-IN", false).replace(/\.00$/, "")}</text>
+        <text x={w - M.r + 8} y={y(fl(last)) + 4} className="num" fontSize="11" fill="var(--teal)">floor</text>
+        <text x={w - M.r + 8} y={y(fl(last)) + 17} className="num" fontSize="11" fill="var(--ink-muted)">{formatMoney(fl(last), currency, "en-IN", false).replace(/\.00$/, "")}</text>
+        {/* the hotel's own hard bounds, drawn only when they fall inside the view */}
+        {hardInView(ceiling) && <line x1={M.l} x2={w - M.r} y1={y(ceiling)} y2={y(ceiling)} stroke="var(--saffron)" strokeWidth={0.8} opacity={0.5} />}
+        {hardInView(floor) && <line x1={M.l} x2={w - M.r} y1={y(floor)} y2={y(floor)} stroke="var(--teal)" strokeWidth={0.8} opacity={0.5} />}
 
         {/* y axis: hairlines + mono labels */}
         {ticks.map((t) => (
@@ -141,6 +155,7 @@ export function ClampCurve({ points, currency, onSelect, selected }: {
           style={{ left: Math.min(Math.max(x(hover!) + 12, 8), w - 230), boxShadow: "var(--shadow-drawer)" }}>
           <p className="num text-ink-muted">{formatDate(hp.for_date, "en-IN", { weekday: "short", day: "numeric", month: "short" })}</p>
           <p className="num text-[15px] text-ink">{formatMoney(hp.published, currency)}</p>
+          <p className="num text-ink-faint">reference {formatMoney(hp.baseline, currency)} · allowed {formatMoney(fl(hp), currency)}–{formatMoney(ce(hp), currency)}</p>
           {hp.clamp_status === "clamped" && hp.clamp_bound && (
             <p className="num text-ink-muted">raw {formatMoney(hp.raw, currency)} · <span style={{ color: BOUND_META[hp.clamp_bound].color }}>{BOUND_META[hp.clamp_bound].glyph} {BOUND_META[hp.clamp_bound].label}</span></p>
           )}
@@ -156,7 +171,8 @@ export function ClampLegend() {
   return (
     <ul className="flex flex-wrap items-center gap-x-5 gap-y-1 text-[12px] text-ink-muted">
       <li className="flex items-center gap-1.5"><span className="inline-block h-[2px] w-5 bg-indigo" /> Published</li>
-      <li className="flex items-center gap-1.5"><span className="inline-block h-3 w-5 border-y border-dashed border-rule-strong" style={{ background: "var(--band)" }} /> Floor–ceiling band</li>
+      <li className="flex items-center gap-1.5"><span className="inline-block h-3 w-5 border-y border-dashed border-rule-strong" style={{ background: "var(--band)" }} /> Allowed range per night</li>
+      <li className="flex items-center gap-1.5"><span className="inline-block w-5 border-t border-dotted border-ink-faint" /> Reference rate</li>
       {(Object.keys(BOUND_META) as Bound[]).map((b) => (
         <li key={b} className="flex items-center gap-1.5"><span style={{ color: BOUND_META[b].color }}>{BOUND_META[b].glyph}</span> {BOUND_META[b].label}</li>
       ))}

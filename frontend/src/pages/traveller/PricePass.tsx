@@ -1,5 +1,5 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { ArrowLeft, ExternalLink, ShieldCheck, Sparkles } from "lucide-react";
+import { ArrowLeft, ArrowRight, ExternalLink, ShieldCheck, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
@@ -8,7 +8,8 @@ import type { Quote } from "../../api/types";
 import { Button, ErrorNote, Skeleton } from "../../components/ui";
 import { daysBetween, formatDate, weekday } from "../../lib/dates";
 import { useLocale } from "../../lib/locale";
-import { formatMoney, formatNumber, type Locale } from "../../lib/money";
+import { formatNumber, formatPrice as formatMoney, type Locale } from "../../lib/money";
+import { Mark } from "./TravellerLayout";
 
 function useCountdown(expiresAt?: string) {
   const [now, setNow] = useState(() => Date.now());
@@ -20,7 +21,7 @@ function useCountdown(expiresAt?: string) {
 function Gate({ seconds, locale }: { seconds: number; locale: Locale }) {
   const m = Math.floor(seconds / 60), s = seconds % 60;
   const pad = (n: number) => formatNumber(n, locale).padStart(2, locale === "en-IN" ? "0" : formatNumber(0, locale));
-  return <span className="num text-[34px] leading-none tracking-tight text-ink" aria-live="off">{pad(m)}:{pad(s)}</span>;
+  return <span className="num text-[40px] leading-none tracking-tight text-ink" aria-live="off">{pad(m)}:{pad(s)}</span>;
 }
 
 export default function PricePass() {
@@ -40,9 +41,9 @@ export default function PricePass() {
   const err = quote.error as unknown as ApiError | null;
   const bookErr = book.error as unknown as ApiError | null;
 
-  if (quote.isLoading) return <div className="card p-8"><Skeleton lines={7} /></div>;
+  if (quote.isLoading) return <div className="panel mx-auto max-w-[1040px] p-8"><Skeleton lines={9} /></div>;
   if (err) return (
-    <div className="space-y-4">
+    <div className="mx-auto max-w-[1040px] space-y-4">
       <Link to="/" className="inline-flex items-center gap-1 text-[13px] text-ink-muted hover:text-ink"><ArrowLeft size={14} strokeWidth={1.5} /> {t("nav.stays")}</Link>
       <ErrorNote error={{ ...err, message: t(`errors.${err.error_code}`, { defaultValue: err.message }) }} />
     </div>
@@ -53,87 +54,117 @@ export default function PricePass() {
   const booked = book.data?.status === "confirmed";
 
   return (
-    <div className="space-y-6">
-      <button onClick={() => navigate(-1)} className="inline-flex items-center gap-1 text-[13px] text-ink-muted hover:text-ink">
+    <div className="mx-auto max-w-[1040px] space-y-10">
+      <button onClick={() => navigate(-1)} className="inline-flex items-center gap-1.5 text-[13px] text-ink-muted transition-colors hover:text-ink">
         <ArrowLeft size={14} strokeWidth={1.5} /> {t("nav.stays")}
       </button>
 
-      <article className="card flex flex-col overflow-hidden md:flex-row" aria-label={t("quote.boarding")}>
-        <div className="flex-1 p-6 sm:p-8">
-          <div className="flex items-center justify-between">
-            <p className="eyebrow">{t("quote.boarding")}</p>
-            {booked && <span className="stamp stamp-floor">{t("quote.booked")}</span>}
-          </div>
-          <h1 className="mt-2 text-[30px] leading-tight">{q.entity_id && roomTitle(q)}</h1>
-          <dl className="mt-5 grid grid-cols-3 gap-4 border-y border-rule py-4">
-            <div><dt className="eyebrow">{t("quote.stay")}</dt>
-              <dd className="num mt-1 text-[15px]">{formatDate(q.checkin_date, locale)} → {formatDate(q.checkout_date, locale)}</dd></div>
-            <div><dt className="eyebrow">{t("search.nights", { count: nights })}</dt><dd className="num mt-1 text-[15px]">{formatNumber(nights, locale)}</dd></div>
-            <div><dt className="eyebrow">{t("quote.guests")}</dt><dd className="num mt-1 text-[15px]">{formatNumber(q.party_size, locale)}</dd></div>
-          </dl>
-          <div className="mt-5 flex flex-wrap items-end justify-between gap-4">
-            <div>
-              <p className="eyebrow">{t("quote.total")}</p>
-              <p className="display-price mt-1 text-[44px] leading-none text-ink">{formatMoney(q.total.amount, q.total.currency, locale)}</p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Button variant="quiet" onClick={() => window.open(window.location.href, "_blank", "noopener")}
-                title={t("quote.compare_note")}><ExternalLink size={14} strokeWidth={1.5} />{t("quote.compare")}</Button>
-              <Button variant="primary" disabled={expired || booked || book.isPending} onClick={() => book.mutate(q.quote_id)}>
-                {booked ? t("quote.booked") : t("quote.book")}
-              </Button>
-            </div>
-          </div>
-          {bookErr && <div className="mt-3"><ErrorNote error={{ ...bookErr, message: t(`errors.${bookErr.error_code}`, { defaultValue: bookErr.message }) }} /></div>}
-          {booked && <p className="mt-3 text-[13px] text-teal">{t("quote.booked_note")}</p>}
-
-          <div className="mt-6">
-            <p className="eyebrow mb-2">{t("quote.nightly")}</p>
-            <ul className="ledger rounded-[6px] border border-rule">
-              {q.nightly.map((n) => (
-                <li key={n.for_date} className="flex items-center justify-between px-3 py-2 text-[13px]">
-                  <span className="num text-ink-muted">{weekday(n.for_date, locale)} {formatDate(n.for_date, locale)}</span>
-                  <span className="num">{formatMoney(n.price.amount, n.price.currency, locale)}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
+      <article className="panel rise overflow-hidden" aria-label={t("quote.boarding")}>
+        {/* header band */}
+        <div className="flex flex-wrap items-center justify-between gap-3 bg-ink px-6 py-3 text-paper sm:px-8">
+          <p className="flex items-center gap-2.5"><Mark size={18} tone="light" />
+            <span className="eyebrow !text-night-text">Rate Ledger · {t("quote.boarding")}</span></p>
+          <p className="num text-[12px] text-night-text">{t("quote.pass_no")} <span className="text-white">{q.quote_id}</span></p>
         </div>
 
-        <div className="perforation hidden md:block" aria-hidden />
-        <div className="perforation perforation-h md:hidden" aria-hidden />
+        <div className="flex flex-col md:flex-row">
+          <div className="min-w-0 flex-1 p-6 sm:p-8">
+            <div className="flex items-start justify-between gap-4">
+              <h1 className="min-w-0 text-[28px] leading-[1.1] sm:text-[34px]">{q.entity_id && <RoomTitle roomId={q.entity_id} />}</h1>
+              {booked ? <span className="stamp stamp-floor stamp-lg shrink-0">{t("quote.booked")}</span>
+                : !expired && <span className="stamp stamp-override stamp-lg shrink-0">{t("quote.held_badge")}</span>}
+            </div>
 
-        <aside className="flex w-full flex-col justify-between gap-6 bg-paper-deep/60 p-6 md:w-[260px]">
-          <div>
-            <p className="eyebrow">{t("quote.pass_no")}</p>
-            <p className="num mt-1 break-all text-[13px] text-ink">{q.quote_id}</p>
+            {/* the stay, laid out like a route */}
+            <div className="mt-7 grid grid-cols-[1fr_auto_1fr] items-end gap-3 border-y border-rule py-5">
+              <div>
+                <p className="eyebrow">{t("search.checkin")}</p>
+                <p className="display mt-1 text-[26px] leading-none sm:text-[30px]">{formatDate(q.checkin_date, locale)}</p>
+                <p className="num mt-1 text-[12px] text-ink-muted">{weekday(q.checkin_date, locale)}</p>
+              </div>
+              <div className="flex flex-col items-center pb-5">
+                <span className="num text-[11px] text-ink-muted">{t("search.nights", { count: nights })}</span>
+                <span className="mt-1 flex w-16 items-center sm:w-36"><span className="h-px flex-1 border-t border-dashed border-ink-faint" /><ArrowRight size={14} strokeWidth={1.5} className="text-ink-faint" /></span>
+              </div>
+              <div className="text-right">
+                <p className="eyebrow">{t("search.checkout")}</p>
+                <p className="display mt-1 text-[26px] leading-none sm:text-[30px]">{formatDate(q.checkout_date, locale)}</p>
+                <p className="num mt-1 text-[12px] text-ink-muted">{weekday(q.checkout_date, locale)}</p>
+              </div>
+            </div>
+
+            <div className="mt-6 flex flex-wrap items-end justify-between gap-5">
+              <div>
+                <p className="eyebrow">{t("quote.total")} · {t("quote.guests")} {formatNumber(q.party_size, locale)}</p>
+                <p className="display-price mt-1.5 text-[46px] leading-none text-ink sm:text-[54px]">{formatMoney(q.total.amount, q.total.currency, locale)}</p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button variant="quiet" onClick={() => window.open(window.location.href, "_blank", "noopener")}
+                  title={t("quote.compare_note")}><ExternalLink size={14} strokeWidth={1.5} />{t("quote.compare")}</Button>
+                <Button variant="primary" className="px-6" disabled={expired || booked || book.isPending} onClick={() => book.mutate(q.quote_id)}>
+                  {booked ? t("quote.booked") : t("quote.book")}
+                </Button>
+              </div>
+            </div>
+            {bookErr && <div className="mt-3"><ErrorNote error={{ ...bookErr, message: t(`errors.${bookErr.error_code}`, { defaultValue: bookErr.message }) }} /></div>}
+            {booked && <p className="mt-3 text-[13px] text-teal">{t("quote.booked_note")}</p>}
+
+            <div className="mt-7">
+              <p className="eyebrow mb-2">{t("quote.nightly")}</p>
+              <ul className="ledger border-y border-rule">
+                {q.nightly.map((n) => (
+                  <li key={n.for_date} className="flex items-center justify-between py-2.5 text-[13.5px]">
+                    <span className="num text-ink-muted">{weekday(n.for_date, locale)} · {formatDate(n.for_date, locale)}</span>
+                    <span className="num text-ink">{formatMoney(n.price.amount, n.price.currency, locale)}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
           </div>
-          <div>
-            <p className="eyebrow">{expired ? t("quote.expired") : t("quote.held")}</p>
-            <div className="mt-2">{seconds !== null && <Gate seconds={seconds} locale={locale} />}</div>
-            {!expired && <p className="mt-2 text-[12px] leading-snug text-ink-muted">{t("quote.held_note")}</p>}
-          </div>
-          <div className="h-10 w-full opacity-70" aria-hidden
-            style={{ backgroundImage: "repeating-linear-gradient(90deg, var(--ink) 0 1px, transparent 1px 3px, var(--ink) 3px 5px, transparent 5px 8px)" }} />
-        </aside>
+
+          <div className="perforation hidden md:block" aria-hidden />
+          <div className="perforation perforation-h md:hidden" aria-hidden />
+
+          {/* stub */}
+          <aside className="flex w-full flex-col justify-between gap-7 bg-paper-deep/50 p-6 sm:p-8 md:w-[290px]">
+            <div>
+              <p className="eyebrow">{t("quote.pass_no")}</p>
+              <p className="num mt-1 break-all text-[14px] text-ink" data-testid="pass-no">{q.quote_id}</p>
+            </div>
+            <div>
+              <p className="eyebrow">{expired ? t("quote.expired") : t("quote.held")}</p>
+              <div className="mt-2">{seconds !== null && <Gate seconds={seconds} locale={locale} />}</div>
+              {!expired && <p className="mt-2 text-[12px] leading-snug text-ink-muted">{t("quote.held_note")}</p>}
+            </div>
+            <div>
+              <span className="stamp stamp-ok">{t("results.within")}</span>
+              <div className="mt-4 h-12 w-full opacity-80" aria-hidden
+                style={{ backgroundImage: "repeating-linear-gradient(90deg, var(--ink) 0 1px, transparent 1px 3px, var(--ink) 3px 5px, transparent 5px 6px, var(--ink) 6px 7px, transparent 7px 10px)" }} />
+              <p className="num mt-1.5 break-all text-[10px] tracking-[0.2em] text-ink-faint">{q.quote_id.toUpperCase()}</p>
+            </div>
+          </aside>
+        </div>
       </article>
 
-      <section className="card p-6" aria-labelledby="why">
-        <div className="flex items-center justify-between">
-          <h2 id="why" className="text-[22px]">{t("quote.why")}</h2>
+      <section className="rise" aria-labelledby="why" style={{ animationDelay: "80ms" }}>
+        <div className="flex items-end justify-between border-b border-ink pb-3">
+          <div>
+            <p className="eyebrow text-brass">{t("home.pipeline_label")}</p>
+            <h2 id="why" className="mt-1 text-[28px]">{t("quote.why")}</h2>
+          </div>
           <Button variant="ghost" onClick={() => setShowWhy(!showWhy)} aria-expanded={showWhy}>{showWhy ? t("quote.hide") : t("quote.why")}</Button>
         </div>
         {showWhy && (
           <>
-            <ol className="ledger mt-3">
+            <ol className="ledger">
               {q.reasons.map((r, i) => (
-                <li key={i} className="flex gap-3 py-2.5 text-[15px] leading-relaxed">
-                  <span className="num w-5 shrink-0 pt-0.5 text-[12px] text-ink-faint">{formatNumber(i + 1, locale)}</span>
-                  <span>{r.text}</span>
+                <li key={i} className="grid grid-cols-[36px_1fr] gap-3 py-4 text-[15.5px] leading-relaxed">
+                  <span className="num pt-1 text-[12px] text-brass">{formatNumber(i + 1, locale).padStart(2, formatNumber(0, locale))}</span>
+                  <span className="text-ink-soft">{r.text}</span>
                 </li>
               ))}
             </ol>
-            {q.warnings.includes("low_confidence") && <p className="mt-3 text-[13px] text-saffron-text">{t("quote.low_confidence")}</p>}
+            {q.warnings.includes("low_confidence") && <p className="mt-2 border-l-2 border-saffron pl-3 text-[13px] text-saffron-text">{t("quote.low_confidence")}</p>}
             <p className="mt-4 inline-flex items-center gap-1.5 text-[12px] text-ink-muted">
               {q.reasons[0]?.source === "llm" ? <Sparkles size={13} strokeWidth={1.5} /> : <ShieldCheck size={13} strokeWidth={1.5} />}
               {q.reasons[0]?.source === "llm" ? t("quote.source_llm") : t("quote.source_template")}
@@ -145,10 +176,6 @@ export default function PricePass() {
   );
 }
 
-function roomTitle(q: Quote) {
-  return <RoomTitle roomId={q.entity_id} />;
-}
-
 function RoomTitle({ roomId }: { roomId: string }) {
   const meta = useQuery({
     queryKey: ["room-meta", roomId],
@@ -158,7 +185,7 @@ function RoomTitle({ roomId }: { roomId: string }) {
   if (!meta.data) return <span className="num text-ink-muted">{roomId}</span>;
   return (
     <span>{meta.data.hotel_name}
-      <span className="block text-[15px] font-normal text-ink-muted" style={{ fontFamily: "var(--font-ui)" }}>
+      <span className="mt-1.5 block text-[14px] font-normal tracking-normal text-ink-muted" style={{ fontFamily: "var(--font-ui)" }}>
         {meta.data.room_name} · {meta.data.city_name}
       </span>
     </span>

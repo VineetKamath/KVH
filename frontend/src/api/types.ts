@@ -22,6 +22,8 @@ export interface ClampSummary {
 }
 export interface CurvePoint {
   for_date: string; decision_id: string; baseline: string; raw: string; published: string; floor: string; ceiling: string;
+  /** effective floor/ceiling for this night: hotel bounds narrowed by the operating band around the reference rate */
+  floor_used?: string; ceiling_used?: string;
   currency: string; clamp_status: "accepted" | "clamped" | "not_applicable"; clamp_bound: Bound | null; bound_value: string | null;
   source: "engine" | "override" | "kill_switch"; approval_status: string; anomaly: boolean;
   pending: { decision_id: string; price: string; reason: string } | null;
@@ -36,7 +38,9 @@ export interface FactorItem { name: string; value: string; unclamped: string; lo
 export interface Explain {
   decision_id: string; entity_id: string; for_date: string; business_date: string; currency: string;
   baseline: string; raw: string; published: string; live_before: string; source: string;
-  clamp: { status: string; bound: Bound | null; bound_value: string | null; chain: { guardrail: string; before: string; after: string }[] };
+  clamp: { status: string; bound: Bound | null; bound_value: string | null; chain: { guardrail: string; before: string; after: string; basis?: "hotel_bound" | "operating_band" }[] };
+  limits?: { hotel_floor: string; hotel_ceiling: string; floor_used: string; ceiling_used: string;
+    band: { below: string; above: string } | null; max_daily_move_pct: string; max_weekly_move_pct: string };
   anchors: { daily: string; weekly: string }; waterfall: WaterfallStep[]; factors: FactorItem[]; top_drivers: string[];
   inputs: Record<string, unknown>;
   forecast: { p10: string; p50: string; p90: string; normal: string; band: string; method: string; level: string; credibility: string } | null;

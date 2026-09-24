@@ -1,12 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { api } from "../../api/client";
-import { ChartOrTable, ErrorNote, SectionTitle, Skeleton, Stat, Tag } from "../../components/ui";
+import { ChartOrTable, Empty, ErrorNote, SectionTitle, Skeleton, Stat, Tag } from "../../components/ui";
 
 type MetricsResp = {
   backtest: null | {
     window_days: number;
-    pickup: Record<string, number>; naive: Record<string, number>;
+    pickup: Record<string, number>; naive: Record<string, number>; hindsight_oracle?: Record<string, number>; always_zero?: Record<string, number>;
     improvement_vs_naive: Record<string, number>;
     interval: Record<string, { coverage: number; interval_score: number }>;
   };
@@ -41,6 +41,50 @@ export default function Metrics() {
                 <Stat label="City×day error vs naive" value={`−${p(m.backtest.improvement_vs_naive.city_day_mae)}`} sub="mean absolute error" />
                 <Stat label="Deviance vs naive" value={`−${p(m.backtest.improvement_vs_naive.city_day_poisson_deviance)}`} sub="Poisson, city × day" />
               </div>
+              {m.backtest.hindsight_oracle && (() => {
+                const o = m.backtest.hindsight_oracle!, pk = m.backtest.pickup, nv = m.backtest.naive;
+                const acc = (v: number) => (v <= 0 ? "≈ 0%" : p(v));
+                return (
+                  <div className="mt-4">
+                    <h3 className="text-[15px] font-medium">How close to the best possible?</h3>
+                    <p className="mt-1 max-w-[80ch] text-[13px] text-ink-muted">Bookings arrive at random. The <em>hindsight oracle</em> cheats: it predicts each day with the real average of the
+                      surrounding month, known only afterwards. Its gap to 100% is randomness no forecast can remove, so a model level with it has learned everything
+                      the booking level can teach. Fewer bookings per cell means more randomness, which is why pricing pools city → region → national by credibility.</p>
+                    <table className="card mt-2 w-full text-[13px]">
+                      <thead><tr className="text-left text-[11px] uppercase tracking-wider text-ink-muted">
+                        <th className="px-4 py-2 font-medium">Level × grain</th><th className="font-medium">Bookings / week</th>
+                        <th className="font-medium">Ours (pickup)</th><th className="font-medium">Naive</th><th className="font-medium">Hindsight oracle</th></tr></thead>
+                      <tbody>{(["national", "region", "city"] as const).flatMap((g) => (["week", "day"] as const).map((gr) => (
+                        <tr key={`${g}-${gr}`} className="border-t border-rule">
+                          <td className="px-4 py-2 capitalize">{g} × {gr}</td>
+                          <td className="num">{pk[`${g}_week_mean_bookings`]?.toFixed(1)}</td>
+                          <td className="num font-medium">{acc(pk[`${g}_${gr}_accuracy`])}</td>
+                          <td className="num text-ink-muted">{acc(nv[`${g}_${gr}_accuracy`])}</td>
+                          <td className="num text-ink-muted">{acc(o[`${g}_${gr}_accuracy`])}</td>
+                        </tr>)))}</tbody>
+                    </table>
+                    {m.backtest.always_zero && (() => {
+                      const z = m.backtest.always_zero!;
+                      const cols = [["Ours (pickup)", pk], ["Naive", nv], ["Always zero", z], ["Hindsight oracle", o]] as const;
+                      return (
+                        <div className="mt-4">
+                          <h3 className="text-[15px] font-medium">City level: measures built for small counts</h3>
+                          <p className="mt-1 max-w-[80ch] text-[13px] text-ink-muted">A city gets well under one booking a week, so a forecast of <em>zero bookings everywhere</em> already
+                            scores ≈0% on 1 − WAPE. These measures tell a real forecast apart from doing nothing.</p>
+                          <table className="card mt-2 w-full text-[13px]">
+                            <thead><tr className="text-left text-[11px] uppercase tracking-wider text-ink-muted"><th className="px-4 py-2 font-medium">City × week</th>
+                              {cols.map(([l]) => <th key={l} className="font-medium">{l}</th>)}</tr></thead>
+                            <tbody>
+                              <tr className="border-t border-rule"><td className="px-4 py-2">Within ±1 booking</td>{cols.map(([l, v]) => <td key={l} className="num">{p(v.city_week_within_1)}</td>)}</tr>
+                              <tr className="border-t border-rule"><td className="px-4 py-2">Poisson deviance (lower is better)</td>{cols.map(([l, v]) => <td key={l} className="num">{v.city_week_deviance.toFixed(3)}</td>)}</tr>
+                            </tbody>
+                          </table>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                );
+              })()}
               <table className="card mt-3 w-full text-[13px]">
                 <thead><tr className="text-left text-[11px] uppercase tracking-wider text-ink-muted"><th className="px-4 py-2 font-medium">Uncertainty band</th><th className="font-medium">Coverage (target 80%)</th><th className="font-medium">Interval score (lower better)</th></tr></thead>
                 <tbody>{Object.entries(m.backtest.interval).map(([k, v]) => (
@@ -51,6 +95,7 @@ export default function Metrics() {
 
           <section>
             <h2 className="mb-3 text-[18px]">Model selection on this deployment's own history</h2>
+            {m.model_selection.length === 0 && <Empty title="No model selection recorded yet">The forecaster records its champion and challenger each time it refits, at the next pricing cycle.</Empty>}
             <ul className="card ledger text-[13px]">
               {m.model_selection.map((s, i) => (
                 <li key={i} className="flex flex-wrap items-center justify-between gap-2 px-4 py-2">
@@ -75,7 +120,7 @@ export default function Metrics() {
               <p className="eyebrow mb-2">Organiser starter query 2 · bookings by lead time</p>
               <ChartOrTable label="Lead time" chart={
                 <ResponsiveContainer width="100%" height={200}>
-                  <BarChart data={m.starter_queries.conversion_by_lead_time}>
+                  <BarChart data={[...m.starter_queries.conversion_by_lead_time].sort((a, b) => parseInt(a.lead) - parseInt(b.lead))}>
                     <CartesianGrid stroke="var(--rule)" strokeWidth={0.6} vertical={false} />
                     <XAxis dataKey="lead" tick={{ fontSize: 11, fontFamily: "var(--font-mono)", fill: "var(--ink-faint)" }} axisLine={{ stroke: "var(--rule)" }} tickLine={false} />
                     <YAxis tick={{ fontSize: 11, fontFamily: "var(--font-mono)", fill: "var(--ink-faint)" }} axisLine={false} tickLine={false} width={40} />
@@ -83,7 +128,7 @@ export default function Metrics() {
                     <Bar dataKey="bookings" fill="var(--indigo)" isAnimationActive={false} />
                   </BarChart>
                 </ResponsiveContainer>} table={
-                <table className="num w-full text-[12px]"><tbody>{m.starter_queries.conversion_by_lead_time.map((r) => <tr key={r.lead} className="border-t border-rule"><td className="py-1">{r.lead} days</td><td>{r.searches} searches</td><td>{r.bookings} bookings</td></tr>)}</tbody></table>} />
+                <table className="num w-full text-[12px]"><tbody>{[...m.starter_queries.conversion_by_lead_time].sort((a, b) => parseInt(a.lead) - parseInt(b.lead)).map((r) => <tr key={r.lead} className="border-t border-rule"><td className="py-1">{r.lead} days</td><td>{r.searches} searches</td><td>{r.bookings} bookings</td></tr>)}</tbody></table>} />
             </div>
             <div className="card p-5">
               <p className="eyebrow mb-2">Organiser starter query 1 · events by month</p>

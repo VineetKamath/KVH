@@ -2,13 +2,14 @@
 import { X } from "lucide-react";
 import { useEffect, useId, useRef, useState, type ButtonHTMLAttributes, type ReactNode } from "react";
 import type { Bound } from "../../api/types";
+import { sectionByNumber } from "../../pages/admin/sections";
 import { formatMoney, type Locale } from "../../lib/money";
 
 type Variant = "primary" | "quiet" | "danger" | "ghost";
 const VARIANTS: Record<Variant, string> = {
-  primary: "bg-indigo text-white hover:bg-indigo-ink border border-indigo",
-  quiet: "bg-surface text-ink border border-rule-strong hover:border-ink-faint",
-  danger: "bg-vermilion text-white border border-vermilion hover:brightness-95",
+  primary: "bg-ink text-paper border border-ink hover:bg-ink-soft active:translate-y-px",
+  quiet: "bg-surface text-ink border border-rule-strong hover:border-ink active:translate-y-px",
+  danger: "bg-vermilion text-white border border-vermilion hover:brightness-95 active:translate-y-px",
   ghost: "bg-transparent text-ink-muted border border-transparent hover:text-ink hover:bg-paper-deep",
 };
 
@@ -16,7 +17,7 @@ export function Button({ variant = "quiet", className = "", ...rest }: ButtonHTM
   return (
     <button
       {...rest}
-      className={`inline-flex h-9 items-center justify-center gap-2 rounded-[5px] px-3.5 text-[13px] font-medium transition-colors duration-150 disabled:opacity-50 ${VARIANTS[variant]} ${className}`}
+      className={`inline-flex h-9 items-center justify-center gap-2 rounded-[3px] px-4 text-[13px] font-medium tracking-[0.01em] transition-all duration-150 disabled:opacity-45 ${VARIANTS[variant]} ${className}`}
     />
   );
 }
@@ -44,7 +45,7 @@ export function Tag({ tone = "slate", children }: { tone?: "indigo" | "teal" | "
     indigo: "bg-indigo-wash text-indigo-ink", teal: "bg-teal-wash text-teal", saffron: "bg-saffron-wash text-saffron-text",
     plum: "bg-plum-wash text-plum", slate: "bg-slate-wash text-slate", vermilion: "bg-vermilion-wash text-vermilion",
   };
-  return <span className={`inline-flex items-center gap-1 rounded-[4px] px-1.5 py-0.5 text-[11px] font-medium ${tones[tone]}`}>{children}</span>;
+  return <span className={`inline-flex items-center gap-1 rounded-[2px] px-1.5 py-0.5 font-mono text-[10.5px] font-medium uppercase tracking-[0.06em] ${tones[tone]}`}>{children}</span>;
 }
 
 export function Skeleton({ lines = 4 }: { lines?: number }) {
@@ -60,7 +61,7 @@ export function Skeleton({ lines = 4 }: { lines?: number }) {
 export function ErrorNote({ error }: { error: unknown }) {
   const e = error as { message?: string; error_code?: string; request_id?: string } | null;
   return (
-    <div role="alert" className="rounded-[6px] border border-vermilion/30 bg-vermilion-wash px-3 py-2 text-[13px] text-vermilion">
+    <div role="alert" className="rounded-[3px] border border-vermilion/30 bg-vermilion-wash px-3 py-2 text-[13px] text-vermilion">
       {e?.message ?? "Something went wrong."}
       {e?.request_id ? <span className="num ml-2 text-[11px] opacity-70">ref {e.request_id}</span> : null}
     </div>
@@ -69,21 +70,24 @@ export function ErrorNote({ error }: { error: unknown }) {
 
 export function Empty({ title, children }: { title: string; children?: ReactNode }) {
   return (
-    <div className="rounded-[6px] border border-dashed border-rule-strong px-5 py-8 text-center">
-      <p className="font-display text-[17px] text-ink">{title}</p>
+    <div className="rounded-[3px] border border-dashed border-rule-strong bg-surface/60 px-6 py-10 text-center">
+      <p className="font-display text-[19px] text-ink">{title}</p>
       {children ? <div className="mt-1 text-[13px] text-ink-muted">{children}</div> : null}
     </div>
   );
 }
 
-export function SectionTitle({ n, title, children }: { n: number; title: string; children?: ReactNode }) {
+export function SectionTitle({ n, title, kicker, children }: { n: number; title: string; kicker?: ReactNode; children?: ReactNode }) {
+  const sec = sectionByNumber(n);
+  const Icon = sec.icon;
   return (
-    <header className="mb-5 flex flex-wrap items-end justify-between gap-3 border-b border-rule pb-3">
-      <div>
-        <p className="eyebrow">§{n}</p>
-        <h1 className="text-[26px] leading-tight">{title}</h1>
+    <header className="mb-6 flex flex-wrap items-end justify-between gap-4 border-b border-ink pb-4">
+      <div className="min-w-0">
+        <p className="eyebrow flex items-center gap-2"><Icon size={13} strokeWidth={1.7} className="text-brass" aria-hidden /><span className="text-brass">{sec.group}</span><span className="h-px w-6 bg-rule-strong" />Revenue desk</p>
+        <h1 className="mt-1.5 text-[30px] leading-[1.1]">{title}</h1>
+        {kicker ? <p className="mt-1.5 max-w-[72ch] text-[13.5px] text-ink-muted">{kicker}</p> : null}
       </div>
-      {children ? <div className="flex items-center gap-2">{children}</div> : null}
+      {children ? <div className="flex flex-wrap items-center gap-2">{children}</div> : null}
     </header>
   );
 }
@@ -102,10 +106,10 @@ export function Drawer({ open, onClose, title, children }: { open: boolean; onCl
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-40 flex justify-end" role="presentation">
-      <div className="absolute inset-0 bg-ink/10" onClick={onClose} aria-hidden />
+      <div className="fade-in absolute inset-0 bg-ink/25 backdrop-blur-[1px]" onClick={onClose} aria-hidden />
       <aside
         ref={ref} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby={id}
-        className="relative z-10 flex h-full w-full max-w-[560px] flex-col border-l border-rule bg-surface outline-none"
+        className="drawer-in relative z-10 flex h-full w-full max-w-[600px] flex-col border-l border-rule bg-surface outline-none"
         style={{ boxShadow: "var(--shadow-drawer)" }}
       >
         <div className="flex items-start justify-between gap-4 border-b border-rule px-6 py-4">
@@ -126,7 +130,7 @@ export function ChartOrTable({ chart, table, label }: { chart: ReactNode; table:
       <div className="mb-2 flex justify-end" role="group" aria-label={`${label} view`}>
         {(["chart", "table"] as const).map((m) => (
           <button key={m} onClick={() => setMode(m)} aria-pressed={mode === m}
-            className={`px-2.5 py-1 text-[11px] font-mono uppercase tracking-wider ${mode === m ? "text-ink border-b-2 border-indigo" : "text-ink-faint"}`}>
+            className={`px-2.5 py-1 font-mono text-[10.5px] uppercase tracking-wider transition-colors ${mode === m ? "border-b-[1.5px] border-ink text-ink" : "text-ink-faint hover:text-ink-muted"}`}>
             {m}
           </button>
         ))}
@@ -136,12 +140,12 @@ export function ChartOrTable({ chart, table, label }: { chart: ReactNode; table:
   );
 }
 
-export function Stat({ label, value, sub }: { label: string; value: ReactNode; sub?: ReactNode }) {
+export function Stat({ label, value, sub, tone }: { label: string; value: ReactNode; sub?: ReactNode; tone?: "alert" | "ok" }) {
   return (
-    <div className="card px-4 py-3">
+    <div className="border-t border-ink pt-3">
       <p className="eyebrow">{label}</p>
-      <p className="num mt-1 text-[22px] text-ink">{value}</p>
-      {sub ? <p className="mt-0.5 text-[12px] text-ink-muted">{sub}</p> : null}
+      <p className={`display-price mt-1 text-[30px] leading-none ${tone === "alert" ? "text-vermilion" : tone === "ok" ? "text-teal" : "text-ink"}`}>{value}</p>
+      {sub ? <p className="mt-1.5 text-[12px] text-ink-muted">{sub}</p> : null}
     </div>
   );
 }

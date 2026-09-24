@@ -1,11 +1,11 @@
 import { useTranslation } from "react-i18next";
 import type { Locale } from "./money";
 
-const KEY = "rl.locale";
+const KEY = "rl.locale.v2"; // v2: English default (older stored choices are ignored)
 
 export function useLocale(): [Locale, (l: Locale) => void] {
   const { i18n } = useTranslation();
-  const current = (["en-IN", "hi", "kn"].includes(i18n.language) ? i18n.language : "hi") as Locale;
+  const current = (["en-IN", "hi", "kn"].includes(i18n.language) ? i18n.language : "en-IN") as Locale;
   const set = (l: Locale) => {
     i18n.changeLanguage(l);
     document.documentElement.lang = l;
@@ -19,5 +19,5 @@ export function initialLocale(): Locale {
     const v = localStorage.getItem(KEY);
     if (v === "en-IN" || v === "hi" || v === "kn") return v;
   } catch { /* storage unavailable */ }
-  return "hi";
+  return "en-IN";
 }

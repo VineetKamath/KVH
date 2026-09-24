@@ -40,7 +40,8 @@ def factors_json(d: Decision, source: str, compact: bool = False) -> str:
 
 
 def chain_json(d: Decision) -> str:
-    return json.dumps([{"guardrail": s.guardrail, "before": money_str(s.before), "after": money_str(s.after)}
+    return json.dumps([{"guardrail": s.guardrail, "before": money_str(s.before), "after": money_str(s.after),
+                        **({"basis": s.basis} if s.basis else {})}
                        for s in d.guardrail.chain], separators=(",", ":"))
 
 

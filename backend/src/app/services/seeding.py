@@ -15,6 +15,7 @@ from app.config import DP_SCHEMA, ORGANISER_DIR, REPO_ROOT, SEED_DIR, SOURCE_DB
 from app.core.clock import set_business_date, wall_now_iso
 from app.core.ids import new_id
 from app.core.money import dec, money_str
+from app.forecast import reference_rate
 from app.pricing.params import default_config_json
 from app.services import audit
 
@@ -72,12 +73,21 @@ def snapshot_baseline(conn: sqlite3.Connection) -> dict:
     now = wall_now_iso()
     inv = conn.execute("SELECT entity_type, entity_id, for_date, price, currency FROM inventory_calendar "
                        "WHERE entity_type = 'room_type'").fetchall()
+    # the baseline is the hotel's rate card with independent night-to-night jitter removed (D-17)
+    ref = reference_rate.fit([(r["entity_id"], r["for_date"], float(dec(r["price"]))) for r in inv])
     conn.executemany(
         "INSERT INTO dp_baseline (baseline_id, entity_type, entity_id, for_date, baseline_price, currency, source, created_at) "
-        "VALUES (?,?,?,?,?,?, 'inventory_calendar_snapshot', ?)",
-        [(new_id("dpbl"), r["entity_type"], r["entity_id"], r["for_date"], money_str(dec(r["price"])), r["currency"], now)
+        "VALUES (?,?,?,?,?,?, 'reference_rate_v1', ?)",
+        [(new_id("dpbl"), r["entity_type"], r["entity_id"], r["for_date"],
+          money_str(dec(repr(ref.reference.get((r["entity_id"], r["for_date"]), float(dec(r["price"])))))), r["currency"], now)
          for r in inv],
     )
+    reference_summary = {"method": "level x shrunk weekday profile x 29-night trend + rho x residual",
+                         "residual_weight_rho": round(ref.residual_weight, 4),
+                         "weekday_profile": [round(x, 4) for x in ref.weekday_profile],
+                         "night_to_night_move_raw": round(ref.jitter_before, 4),
+                         "night_to_night_move_reference": round(ref.jitter_after, 4),
+                         "dropped_noise_sd": round(ref.noise_sd, 4)}
     pb = conn.execute("SELECT * FROM price_bounds").fetchall()
     conn.executemany(
         "INSERT INTO dp_bounds_version (bounds_version_id, bound_id, version, floor_price, ceiling_price, currency, "
@@ -95,7 +105,7 @@ def snapshot_baseline(conn: sqlite3.Connection) -> dict:
         (new_id("dpc"), json.dumps(cfg, sort_keys=True), now, now),
     )
     set_business_date(conn, WARMUP_START)
-    return {"baselines": len(inv), "bounds_versions": len(pb)}
+    return {"baselines": len(inv), "bounds_versions": len(pb), "reference_rate": reference_summary}
 
 
 def catalog_links(conn: sqlite3.Connection) -> int:

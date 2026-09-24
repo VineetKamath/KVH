@@ -76,12 +76,23 @@ def _band(v: str | None) -> str | None:
     return v
 
 
+def _op_band(v: str | None, lo: str, hi: str, what: str) -> str | None:
+    if v is not None and not (Decimal(lo) <= Decimal(v) <= Decimal(hi)):
+        raise ValueError(f"the operating band {what} must be between {lo}% and {hi}%")
+    return v
+
+
 class EngineUpdate(Strict):
     factor_bounds: dict[FACTOR, FactorBoundIn] | None = None
     auto_band_pct: PCT_STR | None = None
+    # operating band around the reference rate, in percent: at most `band_below_pct` under it, `band_above_pct` over it
+    band_below_pct: PCT_STR | None = None
+    band_above_pct: PCT_STR | None = None
     reason: REASON
 
     _check_band = field_validator("auto_band_pct")(classmethod(lambda cls, v: _band(v)))
+    _check_below = field_validator("band_below_pct")(classmethod(lambda cls, v: _op_band(v, "1", "60", "below")))
+    _check_above = field_validator("band_above_pct")(classmethod(lambda cls, v: _op_band(v, "1", "150", "above")))
 
 
 class KillSwitch(Strict):

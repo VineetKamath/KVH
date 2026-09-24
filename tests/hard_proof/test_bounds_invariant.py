@@ -43,10 +43,28 @@ def test_i1_published_always_within_floor_and_ceiling(floor, span, baseline, a1,
 
 
 @settings(max_examples=150, deadline=None)
-@given(a1=st.decimals(min_value=D("4000.00"), max_value=D("9000.00"), places=2), dr=st.decimals(min_value=D("0"),
+@given(a1=st.decimals(min_value=D("4400.00"), max_value=D("6600.00"), places=2), dr=st.decimals(min_value=D("0"),
        max_value=D("5"), places=3), daily=st.sampled_from(["5", "8", "15"]))
 def test_daily_cap_respected_when_compatible_with_hard_bounds(a1, dr, daily):
+    """a1 is drawn so that its daily window overlaps the effective bounds (hotel bounds ∩ operating band
+    5200 × [0.80, 1.35] = [4160, 7020]); outside that, the bound wins by design (as for a lowered ceiling)."""
     b = bounds(floor="3000.00", ceiling="12000.00", daily=daily, weekly="30", step="1.00")
     d = price_one(inputs(baseline="5200.00", a1=str(a1), a7=str(a1), demand_ratio=str(dr), z="1"), b, PARAMS)
     frac = D(daily) / 100
     assert a1 * (1 - frac) - D("0.01") <= d.published <= a1 * (1 + frac) + D("0.01")
+
+
+@settings(max_examples=200, deadline=None)
+@given(floor=money, span=st.decimals(min_value=D("0.00"), max_value=D("150000.00"), places=2), baseline=money,
+       a1=money, dr=ratio, with_event=st.booleans())
+def test_operating_band_only_narrows_hotel_bounds(floor, span, baseline, a1, dr, with_event):
+    """D-18: the published price stays inside the hotel's bounds always, and inside reference × band whenever
+    that band overlaps the hotel's bounds. The band can never widen what the hotel allows."""
+    b = bounds(floor=str(floor), ceiling=str(floor + span), daily="15", weekly="30", step="1.00")
+    inp = inputs(baseline=str(baseline), a1=str(a1), a7=str(a1), demand_ratio="1", z="1")
+    inp = type(inp)(**{**inp.__dict__, "demand_ratio": dr, "events": (diwali(),) if with_event else ()})
+    d = price_one(inp, b, PARAMS)
+    assert b.floor <= d.published <= b.ceiling
+    lo, hi = baseline * PARAMS.band_below, baseline * PARAMS.band_above
+    if max(lo, b.floor) <= min(hi, b.ceiling) - 1:
+        assert lo - 1 <= d.published <= hi + 1

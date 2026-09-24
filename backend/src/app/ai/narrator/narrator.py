@@ -16,7 +16,8 @@ from app.ai.llm import provider
 from app.ai.narrator.gate import check
 from app.core.clock import wall_now_iso
 from app.core.ids import new_id
-from app.services import narration
+from app.core.money import money_str
+from app.services import narration, reports
 from app.services.errors import invalid_id
 
 LOCALE_NAMES = {"en-IN": "en-IN (Indian English)", "hi": "hi (Hindi, Devanagari script)", "kn": "kn (Kannada, Kannada script)"}
@@ -34,7 +35,8 @@ def _context(conn: sqlite3.Connection, decision_id: str) -> tuple[dict, dict, st
     b = conn.execute("SELECT floor_price, ceiling_price, currency FROM price_bounds WHERE entity_id = ?",
                      (d["entity_id"],)).fetchone()
     sym = conn.execute("SELECT symbol FROM currencies WHERE iso4217 = ?", (b["currency"],)).fetchone()
-    return dict(d), narration.facts([dict(d)]), b["floor_price"], b["ceiling_price"], sym["symbol"] if sym else ""
+    lo, hi = reports.allowed_range(conn, [dict(d)])  # the range in force for this night (hotel bounds ∩ operating band)
+    return dict(d), narration.facts([dict(d)]), money_str(lo), money_str(hi), sym["symbol"] if sym else ""
 
 
 def narrate_decision(conn: sqlite3.Connection, decision_id: str, locale: str, force: bool = False) -> dict:

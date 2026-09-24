@@ -56,3 +56,8 @@ ELASTICITY_MIN_CELLS = 10
 Z_80 = 1.2816                    # two-sided 80% normal interval
 MAD_SCALE = 1.4826               # MAD → standard deviation under normality
 TINY = 1e-6
+
+# reference rate (docs/DECISIONS.md D-17): slow-drift window of the rate card; not fitted to any dataset
+REFERENCE_TREND_HALF_WIDTH = 14  # nights each side → a 29-night centred mean (about one month)
+# backtest benchmark only: hindsight oracle averages the realised counts over the same 29-day window
+ORACLE_HALF_WIDTH = 14

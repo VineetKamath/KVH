@@ -51,6 +51,9 @@ class EngineParams:
     competitor_sensitivity: Decimal = Decimal("0.06")
     cancellation_sensitivity: Decimal = Decimal("0.10")
     damper_max_pull: Decimal = Decimal("0.5")
+    # operating band around the reference rate (fractions, e.g. 0.80 / 1.35); None = hotel hard bounds only
+    band_below: Decimal | None = None
+    band_above: Decimal | None = None
 
 
 @dataclass(frozen=True)
@@ -114,6 +117,7 @@ class ChainStep:
     guardrail: str
     before: Decimal
     after: Decimal
+    basis: str | None = None  # floor/ceiling only: "hotel_bound" (price_bounds) or "operating_band" (reference × band)
 
 
 @dataclass(frozen=True)
@@ -125,6 +129,8 @@ class GuardrailResult:
     chain: tuple[ChainStep, ...]
     allowed_lo: Decimal
     allowed_hi: Decimal
+    floor_used: Decimal | None = None    # effective floor/ceiling after the operating band (None = hotel bounds)
+    ceiling_used: Decimal | None = None
 
 
 @dataclass(frozen=True)

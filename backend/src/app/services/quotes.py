@@ -16,7 +16,7 @@ from app.config import get_settings
 from app.core.clock import business_date, iso_in, wall_now_iso
 from app.core.ids import new_id
 from app.core.money import ZERO, dec, money_str
-from app.services import narration
+from app.services import narration, reports
 from app.services.errors import AppError, infeasible, invalid_id
 
 MAX_NIGHTS = 14
@@ -57,6 +57,7 @@ def _reasons(conn: sqlite3.Connection, decisions: list[dict], locale: str, floor
     llm = narration.cached(conn, first, locale) if len(decisions) == 1 else None
     if llm:
         return llm, "llm"
+    floor, ceiling = reports.allowed_range(conn, decisions)  # the range actually in force, not the wider hotel pair
     return narration.render_template(narration.facts(decisions), locale, floor, ceiling, symbol), "template"
 
 

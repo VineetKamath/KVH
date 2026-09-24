@@ -6,10 +6,38 @@
 |---|---|---|---|
 | City × day MAE | 0.0795 | 0.1094 | 27.3% |
 | City × day Poisson deviance | 0.2700 | 0.3408 | 20.8% |
-| National × week accuracy (1 − WAPE) | 88.5% | 87.0% | |
-| National × day accuracy (1 − WAPE) | 63.7% | 56.1% | |
 
 Rate window chosen by nested validation: 56 days. Cells scored: 10620.
+
+## Accuracy at each level, against a benchmark that cheats
+
+Accuracy = 1 − WAPE. The *hindsight oracle* is not a model: it predicts each day with the realised average
+of the surrounding 29 days, i.e. it knows the true booking level from the future. Its gap to 100% is arrival
+randomness that no forecast can remove. A model at the oracle has learned everything the level can teach;
+a model above it is also using bookings already on the books.
+
+| Level × grain | Bookings per week | Pickup (ours) | Naive | Hindsight oracle |
+|---|---|---|---|---|
+| National × week | 24.5 | 88.5% | 87.0% | 90.4% |
+| National × day | 24.5 | 63.7% | 56.1% | 55.7% |
+| Region × week | 2.4 | 63.5% | 55.9% | 62.7% |
+| Region × day | 2.4 | 11.0% | -12.9% | -12.4% |
+| City × week | 0.4 | -0.8% | -29.1% | 2.2% |
+| City × day | 0.4 | -32.4% | -82.2% | -80.2% |
+
+Where even the oracle scores near or below 0% (city level: well under one booking a week per city), the
+level is not forecastable at that grain; pricing therefore pools city → region → national by credibility.
+
+## City level: measures built for small counts
+
+A city gets well under one booking a week, so 1 − WAPE cannot tell a model from doing nothing: a forecast of
+*zero bookings for every city, every week* scores the same ≈0%. These measures can tell them apart:
+
+| City × week | Pickup (ours) | Naive | Always zero | Hindsight oracle |
+|---|---|---|---|---|
+| Within ±1 booking of the actual | 95.7% | 93.0% | 93.0% | 92.5% |
+| Poisson deviance (lower is better) | 0.752 | 0.956 | 10.873 | 0.625 |
+| 1 − WAPE (misleading at this volume) | -0.8% | -29.1% | 0.0% | 2.2% |
 
 ## Uncertainty band (P10–P90, 7-day signal)
 

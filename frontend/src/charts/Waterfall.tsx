@@ -27,7 +27,7 @@ export function Waterfall({ baseline, published, steps, currency }: { baseline: 
     <div>
       <ul className="ledger text-[13px]">
         <li className="grid grid-cols-[170px_1fr_104px] items-center gap-3 py-2">
-          <span className="text-ink-muted">Base rate</span>
+          <span className="text-ink-muted">Reference rate</span>
           <span className="relative h-3"><span className="absolute top-0 h-3 w-[2px] bg-ink" style={{ left: `${pos(new Decimal(baseline))}%` }} /></span>
           <span className="num text-right">{formatMoney(baseline, currency)}</span>
         </li>

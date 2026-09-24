@@ -2,6 +2,7 @@
 
     raw        = quantize(baseline × Π m_i)          (8 bounded factors)
     published  = guardrails(raw, bounds, anchors)    (weekly → daily → floor/ceiling → round inward)
+    floor/ceiling = hotel bounds ∩ baseline × [band_below, band_above]   (operating band, D-18)
     waterfall  = exact telescoping attribution       (sums to published − baseline)
 
 No I/O, no clock reads, no randomness. The simulator calls this exact function, so a simulation is
@@ -9,9 +10,9 @@ production run on different inputs (ARCHITECTURE §9.3).
 """
 from __future__ import annotations
 
-from decimal import Decimal
+from decimal import ROUND_CEILING, ROUND_FLOOR, Decimal
 
-from app.core.money import ONE, ZERO, quantize
+from app.core.money import CENT, ONE, ZERO, quantize
 from app.pricing.attribution import waterfall
 from app.pricing.factors import compute_factors
 from app.pricing.guardrails import apply_chain
@@ -27,11 +28,19 @@ def price_one(inp: PriceInputs, bounds: Bounds, params: EngineParams) -> Decisio
     for f in factors:
         raw_exact *= f.value
     raw = quantize(raw_exact)
-    g = apply_chain(raw, bounds, inp.daily_anchor, inp.weekly_anchor)
+    g = apply_chain(raw, bounds, inp.daily_anchor, inp.weekly_anchor, operating_band(baseline, params))
     wf = waterfall(baseline, factors, raw_exact, raw, g.pre_round, g.published)
     if baseline is not inp.baseline:
         inp = _with_baseline(inp, baseline)
     return Decision(inputs=inp, bounds=bounds, factors=factors, raw_price=raw, guardrail=g, waterfall=wf)
+
+
+def operating_band(baseline: Decimal, params: EngineParams) -> tuple[Decimal, Decimal] | None:
+    """The engine may move a price at most this far from the night's reference rate (inward to the cent)."""
+    if params.band_below is None or params.band_above is None:
+        return None
+    return ((baseline * params.band_below).quantize(CENT, rounding=ROUND_CEILING),
+            (baseline * params.band_above).quantize(CENT, rounding=ROUND_FLOOR))
 
 
 def _with_baseline(inp: PriceInputs, baseline: Decimal) -> PriceInputs:

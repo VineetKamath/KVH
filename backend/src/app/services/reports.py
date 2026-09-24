@@ -6,7 +6,8 @@ import sqlite3
 from decimal import Decimal
 
 from app.core.money import ZERO, dec, money_str, pct
-from app.pricing.engine import price_one
+from app.pricing.engine import operating_band, price_one
+from app.pricing.guardrails import effective_bounds
 from app.pricing.params import params_from_row
 from app.pricing.types import Bounds, EventUplift, PriceInputs
 from app.services.errors import invalid_id
@@ -45,7 +46,8 @@ def curve(conn: sqlite3.Connection, entity_id: str, from_date: str | None = None
         raise invalid_id("room")
     live = conn.execute(
         "SELECT d.decision_id, d.for_date, d.baseline_price, d.raw_price, d.published_price, d.clamp_status, d.clamp_bound, "
-        "d.bound_value, d.source, d.approval_status, d.anomaly_flag, f.p10, f.p50, f.p90, f.confidence_band "
+        "d.bound_value, d.source, d.approval_status, d.anomaly_flag, d.bounds_version, d.engine_config_version, "
+        "f.p10, f.p50, f.p90, f.confidence_band "
         "FROM dp_price_decision d LEFT JOIN dp_forecast f ON f.forecast_id = d.forecast_id "
         "WHERE d.entity_type = 'room_type' AND d.entity_id = ? AND d.is_live = 1 "
         "AND (? IS NULL OR d.for_date >= ?) AND (? IS NULL OR d.for_date <= ?) ORDER BY d.for_date",
@@ -54,12 +56,20 @@ def curve(conn: sqlite3.Connection, entity_id: str, from_date: str | None = None
         "SELECT decision_id, for_date, published_price, approval_reason FROM dp_price_decision WHERE entity_type = 'room_type' "
         "AND entity_id = ? AND approval_status = 'pending_approval'", (entity_id,))}
     points = []
+    params_at, bounds_at = {}, {}
     for r in live:
         p = pending.get(r["for_date"])
+        cv, bv = r["engine_config_version"], r["bounds_version"]
+        if cv not in params_at:
+            params_at[cv] = params_from_row(conn.execute("SELECT * FROM dp_engine_config WHERE version = ?", (cv,)).fetchone())
+        if bv not in bounds_at:
+            bounds_at[bv] = _bounds_at(conn, entity_id, bv)
+        f_used, c_used, _, _ = effective_bounds(bounds_at[bv], operating_band(dec(r["baseline_price"]), params_at[cv]))
         points.append({
             "for_date": r["for_date"], "decision_id": r["decision_id"],
             "baseline": r["baseline_price"], "raw": r["raw_price"], "published": r["published_price"],
             "floor": b["floor_price"], "ceiling": b["ceiling_price"], "currency": b["currency"],
+            "floor_used": money_str(f_used), "ceiling_used": money_str(c_used),
             "clamp_status": r["clamp_status"], "clamp_bound": r["clamp_bound"], "bound_value": r["bound_value"],
             "source": r["source"], "approval_status": r["approval_status"], "anomaly": bool(r["anomaly_flag"]),
             "pending": None if p is None else {"decision_id": p["decision_id"], "price": p["published_price"],
@@ -69,6 +79,22 @@ def curve(conn: sqlite3.Connection, entity_id: str, from_date: str | None = None
         })
     return {"entity_id": entity_id, "currency": b["currency"], "floor": b["floor_price"], "ceiling": b["ceiling_price"],
             "points": points, "summary": clamp_summary(conn, entity_id)}
+
+
+def allowed_range(conn: sqlite3.Connection, decisions: list[dict]) -> tuple[Decimal, Decimal]:
+    """The range the engine was actually allowed to publish in, across these nights: the hotel's bounds narrowed
+    by the operating band around each night's reference rate (D-18). Lowest floor, highest ceiling."""
+    lows, highs = [], []
+    params_at: dict[int, object] = {}
+    for d in decisions:
+        cv = d["engine_config_version"]
+        if cv not in params_at:
+            params_at[cv] = params_from_row(conn.execute("SELECT * FROM dp_engine_config WHERE version = ?", (cv,)).fetchone())
+        f_used, c_used, _, _ = effective_bounds(_bounds_at(conn, d["entity_id"], d["bounds_version"]),
+                                                operating_band(dec(d["baseline_price"]), params_at[cv]))
+        lows.append(f_used)
+        highs.append(c_used)
+    return min(lows), max(highs)
 
 
 def _bounds_at(conn: sqlite3.Connection, entity_id: str, version: int) -> Bounds:
@@ -108,6 +134,13 @@ def explain(conn: sqlite3.Connection, decision_id: str) -> dict:
         again = replay(conn, d)
         replay_ok = money_str(again.published) == d["published_price"] and money_str(again.raw_price) == d["raw_price"]
     fc = conn.execute("SELECT * FROM dp_forecast WHERE forecast_id = ?", (d["forecast_id"],)).fetchone() if d["forecast_id"] else None
+    hb = _bounds_at(conn, d["entity_id"], d["bounds_version"])
+    prm = params_from_row(conn.execute("SELECT * FROM dp_engine_config WHERE version = ?", (d["engine_config_version"],)).fetchone())
+    f_used, c_used, _, _ = effective_bounds(hb, operating_band(dec(d["baseline_price"]), prm))
+    limits = {"hotel_floor": money_str(hb.floor), "hotel_ceiling": money_str(hb.ceiling),
+              "floor_used": money_str(f_used), "ceiling_used": money_str(c_used),
+              "band": None if prm.band_below is None else {"below": str(prm.band_below), "above": str(prm.band_above)},
+              "max_daily_move_pct": str(hb.daily_pct * 100), "max_weekly_move_pct": str(hb.weekly_pct * 100)}
     ranked = sorted([i for i in f.get("items", []) if "contribution" in i],
                     key=lambda i: -abs(dec(i["contribution"])))
     return {
@@ -117,7 +150,7 @@ def explain(conn: sqlite3.Connection, decision_id: str) -> dict:
         "live_before": d["live_price_before"], "source": d["source"],
         "clamp": {"status": d["clamp_status"], "bound": d["clamp_bound"], "bound_value": d["bound_value"],
                   "chain": json.loads(d["clamp_chain"])},
-        "anchors": {"daily": d["daily_anchor_price"], "weekly": d["weekly_anchor_price"]},
+        "anchors": {"daily": d["daily_anchor_price"], "weekly": d["weekly_anchor_price"]}, "limits": limits,
         "waterfall": wf, "factors": f.get("items", []), "top_drivers": [i["name"] for i in ranked[:3]],
         "inputs": f.get("inputs", {}),
         "forecast": None if fc is None else {"p10": fc["p10"], "p50": fc["p50"], "p90": fc["p90"], "normal": fc["normal_level"],

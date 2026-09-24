@@ -46,7 +46,7 @@ T = {
         "max_weekly_movement": "A weekly price-movement limit was applied ({pct}).",
         "override": "Set by the hotel's revenue manager ({pct}).",
         "kill_switch": "Dynamic pricing is paused; the base rate applies ({pct}).",
-        "bounds": "This room's price always stays between {floor} and {ceiling}.",
+        "bounds": "Each night's price is kept inside the range this hotel allows: {floor} to {ceiling}.",
     },
     "hi": {
         "demand+": "इन तारीखों के लिए मांग सामान्य से अधिक है ({pct})।",
@@ -71,7 +71,7 @@ T = {
         "max_weekly_movement": "साप्ताहिक मूल्य-परिवर्तन की सीमा लागू की गई ({pct})।",
         "override": "होटल के रेवेन्यू मैनेजर द्वारा तय ({pct})।",
         "kill_switch": "डायनेमिक प्राइसिंग रुकी हुई है; मूल दर लागू है ({pct})।",
-        "bounds": "इस कमरे की कीमत हमेशा {floor} और {ceiling} के बीच रहती है।",
+        "bounds": "हर रात की कीमत होटल की मंज़ूर सीमा के भीतर रखी जाती है: {floor} से {ceiling}।",
     },
     "kn": {
         "demand+": "ಈ ದಿನಾಂಕಗಳಿಗೆ ಬೇಡಿಕೆ ಸಾಮಾನ್ಯಕ್ಕಿಂತ ಹೆಚ್ಚಿದೆ ({pct}).",
@@ -96,7 +96,7 @@ T = {
         "max_weekly_movement": "ವಾರದ ಬೆಲೆ ಬದಲಾವಣೆಯ ಮಿತಿ ಅನ್ವಯಿಸಲಾಗಿದೆ ({pct}).",
         "override": "ಹೋಟೆಲ್‌ನ ರೆವೆನ್ಯೂ ಮ್ಯಾನೇಜರ್ ನಿಗದಿಪಡಿಸಿದ್ದಾರೆ ({pct}).",
         "kill_switch": "ಡೈನಾಮಿಕ್ ಬೆಲೆ ನಿಗದಿ ತಾತ್ಕಾಲಿಕವಾಗಿ ನಿಂತಿದೆ; ಮೂಲ ದರ ಅನ್ವಯಿಸುತ್ತದೆ ({pct}).",
-        "bounds": "ಈ ಕೊಠಡಿಯ ಬೆಲೆ ಯಾವಾಗಲೂ {floor} ಮತ್ತು {ceiling} ನಡುವೆ ಇರುತ್ತದೆ.",
+        "bounds": "ಪ್ರತಿ ರಾತ್ರಿಯ ಬೆಲೆಯನ್ನು ಹೋಟೆಲ್ ಅನುಮತಿಸುವ ವ್ಯಾಪ್ತಿಯೊಳಗೆ ಇಡಲಾಗುತ್ತದೆ: {floor} ರಿಂದ {ceiling}.",
     },
 }
 

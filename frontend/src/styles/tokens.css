@@ -1,31 +1,53 @@
-/* The Rate Ledger — design tokens. Light theme only. Every colour in the UI comes from here. */
+/* Rate Ledger — design tokens. Light theme. Every colour in the UI comes from here.
+   Direction: an editorial ledger for hotel pricing — warm paper, deep ink, a brass accent for the brand,
+   and four semantic stamp colours for the four guardrails (ceiling, floor, daily move, weekly move). */
 :root {
-  --paper: #fbf8f3;
-  --paper-deep: #f4efe6;
-  --surface: #ffffff;
-  --ink: #1b2430;
-  --ink-muted: #5b6472;
-  --ink-faint: #8a919c;
-  --rule: #e7e1d6;
-  --rule-strong: #d6cdbd;
-  --indigo: #2f4b8f;
-  --indigo-ink: #243a70;
-  --indigo-wash: #eef1f8;
-  --band: #2f4b8f14;
-  --saffron: #e0891b;
-  --saffron-text: #a55f0b;
-  --saffron-wash: #fcf2e3;
-  --teal: #1f7a6d;
-  --teal-wash: #e8f3f1;
-  --plum: #7a3e6e;
-  --plum-wash: #f5ecf3;
-  --slate: #4a5568;
-  --slate-wash: #eef0f3;
-  --vermilion: #c8452f;
-  --vermilion-wash: #fbece9;
-  --radius: 6px;
-  --shadow-drawer: 0 18px 48px -18px rgba(27, 36, 48, 0.28);
+  /* paper & ink */
+  --paper: #f6f3ec;
+  --paper-deep: #ede8dd;
+  --surface: #fffdf9;
+  --ink: #141a24;
+  --ink-soft: #2a3342;
+  --ink-muted: #5c6574;
+  --ink-faint: #8d949f;
+  --rule: #e4ddcf;
+  --rule-strong: #cfc5b2;
+
+  /* the published price, links, primary actions */
+  --indigo: #1f3a68;
+  --indigo-ink: #152a4f;
+  --indigo-wash: #e9eef7;
+  --band: #1f3a6812;
+
+  /* brand accent (wordmark, highlights) — used sparingly */
+  --brass: #a8792c;
+  --brass-wash: #f5ecd9;
+
+  /* guardrail semantics */
+  --saffron: #d9821a;       /* ceiling */
+  --saffron-text: #9a5a0a;
+  --saffron-wash: #fbefdc;
+  --teal: #177265;          /* floor / ok */
+  --teal-wash: #e3f1ee;
+  --plum: #7b3b6f;          /* daily move */
+  --plum-wash: #f4e9f1;
+  --slate: #4a5568;         /* weekly move */
+  --slate-wash: #eceef2;
+  --vermilion: #c2412b;     /* alert / approval */
+  --vermilion-wash: #fbe9e5;
+
+  /* the control-room rail */
+  --night: #111723;
+  --night-2: #1a2231;
+  --night-rule: #2a3446;
+  --night-text: #c9d0dc;
+  --night-faint: #7d8799;
+
+  --radius: 4px;
+  --shadow-drawer: 0 24px 60px -24px rgba(20, 26, 36, 0.35);
+  --shadow-lift: 0 1px 0 rgba(20, 26, 36, 0.04), 0 10px 30px -18px rgba(20, 26, 36, 0.25);
   --font-display: "Fraunces Variable", "Fraunces", Georgia, serif;
   --font-ui: "IBM Plex Sans", "Noto Sans Devanagari", "Noto Sans Kannada", system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
 }

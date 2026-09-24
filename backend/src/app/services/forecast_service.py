@@ -87,6 +87,7 @@ def state_for(conn: sqlite3.Connection, business: date, p: Panel | None = None, 
                 s = _load_from_disk(target - back)
                 if s is not None:
                     _cache[s.as_of] = s
+                    _ensure_selection_recorded(conn, s)  # the disk cache outlives a reseed; the DB record must not be lost
                     return s, p
         state = fit(p, target)
         _cache[target] = state
@@ -94,6 +95,12 @@ def state_for(conn: sqlite3.Connection, business: date, p: Panel | None = None, 
         (MODEL_DIR / f"forecast_{target}.json").write_text(_to_json(state), encoding="utf-8")
     record_selection(conn, state)
     return state, p
+
+
+def _ensure_selection_recorded(conn: sqlite3.Connection, state: ForecastState) -> None:
+    as_of = (EPOCH + timedelta(days=state.as_of)).isoformat()
+    if conn.execute("SELECT 1 FROM dp_model_selection WHERE as_of_date = ? LIMIT 1", (as_of,)).fetchone() is None:
+        record_selection(conn, state)
 
 
 def record_selection(conn: sqlite3.Connection, state: ForecastState) -> None:

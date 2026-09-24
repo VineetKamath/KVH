@@ -941,3 +941,13 @@ Audit hash chain → A/B live split → synthetic stress tests (keep time + regi
 1. Is there a `room_type → hotel` mapping (the platform's `hotel_room_types`)? Until there is, `dp_catalog_link` is `synthetic`.
 2. Does "day-over-day" mean *over time for one stay date* (our reading, supported by the 54% figure) or *across adjacent stay dates*?
 3. Which column holds the "~1% outlier" room rates?
+
+## Appendix C: deviations recorded during the build
+
+- **D-17:** the price baseline is a de-noised *reference rate* (level × weekday profile × trend + ρ × residual),
+  not the raw `inventory_calendar.price`. The raw rate carries ±7% independent per-night jitter that made
+  the curve zig-zag. See `docs/DECISIONS.md`.
+- **D-18:** an *operating band* around the reference rate (default −20% / +35%) narrows the provided
+  `price_bounds` (0.75×–1.85×). It is versioned in `dp_engine_config` and editable in Controls.
+- **D-19:** forecast accuracy is reported at every level against a hindsight-oracle benchmark
+  (`docs/METRICS.md`).
