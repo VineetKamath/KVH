@@ -1,4 +1,6 @@
 * text=auto eol=lf
+*.ps1 text eol=crlf
 *.db binary
 *.pdf binary
-*.ps1 text eol=crlf
+# Organiser material must stay byte-identical (SHA256SUMS.txt): never normalise line endings.
+DynamicPricing/** -text
