@@ -1,0 +1,62 @@
+"""SQLite access. Parameterized statements only (never string-built SQL with user input).
+
+Decision recorded in docs/DECISIONS.md (D-01): stdlib `sqlite3` is used directly instead of
+SQLAlchemy Core, because explicit `BEGIN IMMEDIATE` transactions (the single-writer lock the
+cycle and quote paths rely on) are simpler and more predictable with the stdlib driver. All SQL
+lives in `db/` and `services/`, uses `?` placeholders, and is portable to Postgres by swapping the
+placeholder style.
+"""
+from __future__ import annotations
+
+import sqlite3
+import threading
+from collections.abc import Iterator
+from contextlib import contextmanager
+from pathlib import Path
+
+from app.config import get_settings
+
+_local = threading.local()
+
+
+def connect(path: Path | None = None) -> sqlite3.Connection:
+    db = path or get_settings().db_path
+    conn = sqlite3.connect(str(db), timeout=30, isolation_level=None, check_same_thread=False)
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON")
+    conn.execute("PRAGMA journal_mode = WAL")
+    conn.execute("PRAGMA synchronous = NORMAL")
+    conn.execute("PRAGMA busy_timeout = 30000")
+    return conn
+
+
+def get_conn() -> sqlite3.Connection:
+    """One connection per thread (FastAPI runs sync endpoints in a thread pool)."""
+    conn = getattr(_local, "conn", None)
+    if conn is None:
+        conn = connect()
+        _local.conn = conn
+    return conn
+
+
+@contextmanager
+def tx(conn: sqlite3.Connection, immediate: bool = True) -> Iterator[sqlite3.Connection]:
+    """A write transaction. IMMEDIATE takes SQLite's single-writer lock up front, so concurrent
+    writers serialise instead of failing mid-transaction."""
+    conn.execute("BEGIN IMMEDIATE" if immediate else "BEGIN")
+    try:
+        yield conn
+    except BaseException:
+        conn.execute("ROLLBACK")
+        raise
+    else:
+        conn.execute("COMMIT")
+
+
+def rows(conn: sqlite3.Connection, sql: str, params: tuple | dict = ()) -> list[dict]:
+    return [dict(r) for r in conn.execute(sql, params).fetchall()]
+
+
+def one(conn: sqlite3.Connection, sql: str, params: tuple | dict = ()) -> dict | None:
+    r = conn.execute(sql, params).fetchone()
+    return dict(r) if r is not None else None

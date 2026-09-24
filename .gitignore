@@ -1,0 +1,28 @@
+# secrets
+.env
+.env.*
+!.env.example
+# runtime state
+var/
+*.db-wal
+*.db-shm
+# python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.hypothesis/
+*.egg-info/
+# node / build
+node_modules/
+frontend/dist/
+dist/
+build/
+playwright-report/
+test-results/
+# os / editor
+.DS_Store
+Thumbs.db
+*.log
+.vscode/
+.idea/

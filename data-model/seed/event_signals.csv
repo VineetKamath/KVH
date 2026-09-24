@@ -1,0 +1,14 @@
+city_name,title,start_date,end_date,impact_tag,radius_km,confidence_band,justification,source_ref,approved
+Udaipur,Sharad Navratri,2026-10-11,2026-10-19,moderate,50.00,high,"Nine-night festival; Garba events and domestic leisure travel rise across Rajasthan","Government of Rajasthan tourism calendar 2026 (festival list)",1
+Udaipur,Dussehra,2026-10-20,2026-10-21,major,50.00,high,"National holiday on a Tuesday; long-weekend leisure demand into Rajasthan","Government of India gazetted holidays 2026",1
+Udaipur,Diwali,2026-11-07,2026-11-10,major,50.00,high,"Largest national holiday; peak domestic leisure travel window","Government of India gazetted holidays 2026",1
+Udaipur,Gandhi Jayanti,2026-10-02,2026-10-02,minor,50.00,high,"National holiday on a Friday; short long-weekend","Government of India gazetted holidays 2026",1
+Jaisalmer,Dussehra,2026-10-20,2026-10-21,major,60.00,high,"National holiday; desert-circuit leisure demand","Government of India gazetted holidays 2026",1
+Jaisalmer,Diwali,2026-11-07,2026-11-10,major,60.00,high,"Largest national holiday; peak domestic leisure travel window","Government of India gazetted holidays 2026",1
+Lucknow,Diwali,2026-11-07,2026-11-10,major,40.00,high,"Largest national holiday; visiting-family travel","Government of India gazetted holidays 2026",1
+Lucknow,Lucknow Mahotsav (dates to confirm),2026-11-25,2026-12-05,moderate,20.00,low,"Annual city cultural festival; exact 2026 dates not yet published","Uttar Pradesh Tourism events page (2026 dates pending)",0
+Jaipur,Diwali,2026-11-07,2026-11-10,major,50.00,high,"Largest national holiday; peak domestic leisure travel window","Government of India gazetted holidays 2026",0
+Varanasi,Dev Deepawali,2026-11-24,2026-11-24,major,20.00,medium,"Ganga ghat illuminations on Kartik Purnima draw large visitor numbers","Uttar Pradesh Tourism events page",0
+Amritsar,Diwali (Bandi Chhor Divas),2026-11-07,2026-11-09,major,30.00,high,"Golden Temple illuminations; pilgrim and leisure travel peak","Government of India gazetted holidays 2026",0
+Puri,Kartik Purnima,2026-11-24,2026-11-24,moderate,20.00,medium,"Pilgrim bathing festival","Odisha Tourism festival calendar",0
+Darjeeling,Durga Puja,2026-10-17,2026-10-21,moderate,40.00,medium,"West Bengal's largest festival; hill-station leisure travel","West Bengal government holiday list 2026",0
