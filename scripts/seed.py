@@ -30,6 +30,7 @@ def run_validator(db_path) -> tuple[bool, str]:
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--no-warmup", action="store_true")
+    ap.add_argument("--warmup-start", default=None, help="first warm-up business date (default 2026-08-17)")
     args = ap.parse_args(argv)
     t0 = time.perf_counter()
 
@@ -59,7 +60,10 @@ def main(argv: list[str] | None = None) -> int:
     else:
         from app.services.cycle import warmup_replay
 
-        stats = warmup_replay(conn, seeding.WARMUP_START, seeding.DEMO_DATE)
+        from datetime import date as _date
+
+        start = _date.fromisoformat(args.warmup_start) if args.warmup_start else seeding.WARMUP_START
+        stats = warmup_replay(conn, start, seeding.DEMO_DATE)
         print(f"[7/9] warm-up replay: {stats['cycles']} cycles, {stats['decisions']} decisions, "
               f"{stats['clamped_last']} clamped on {seeding.DEMO_DATE}")
         from app.services.narration import pregenerate_demo

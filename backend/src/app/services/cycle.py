@@ -112,8 +112,11 @@ def _choose_series(city: str | None, region: str | None, idx: dict, skill: dict[
 
 def price_all(conn: sqlite3.Connection, business: date, kind: str, params: EngineParams,
               bounds_override: dict[str, Bounds] | None = None, entities: list[str] | None = None,
-              anchors: tuple[dict, dict] | None = None, live: dict | None = None) -> tuple[list[Priced], dict]:
-    """Price every (entity, stay date) for `business`. Reads the DB; writes nothing."""
+              anchors: tuple[dict, dict] | None = None, live: dict | None = None,
+              approved_by: str | None = None) -> tuple[list[Priced], dict]:
+    """Price every (entity, stay date) for `business`. Reads the DB; writes nothing.
+    approved_by: the manager whose explicit action this cycle carries out (e.g. releasing the kill switch);
+    moves that would otherwise queue are recorded as 'approved' by them instead."""
     events = load_events(conn)
     state, pnl = forecast_service.state_for(conn, business)
     last_day = conn.execute("SELECT MAX(for_date) FROM dp_baseline").fetchone()[0]
@@ -189,10 +192,12 @@ def price_all(conn: sqlite3.Connection, business: date, kind: str, params: Engin
         live_outside = not (b.floor <= p.live_before <= b.ceiling)
         if kind == "warmup" or p.source != "engine" or live_outside or move == ZERO:
             continue
-        if p.anomaly:
-            p.approval_status, p.approval_reason, p.is_live = "pending_approval", "anomaly_flagged", False
-        elif move > params.auto_band_pct:
-            p.approval_status, p.approval_reason, p.is_live = "pending_approval", "outside_auto_band", False
+        needs = "anomaly_flagged" if p.anomaly else ("outside_auto_band" if move > params.auto_band_pct else None)
+        if needs and approved_by:
+            p.approval_status, p.approval_reason = "approved", needs
+            p.feature["approved_by"] = approved_by
+        elif needs:
+            p.approval_status, p.approval_reason, p.is_live = "pending_approval", needs, False
     context = {"result": result, "state": state, "horizon": horizon}
     return priced, context
 
@@ -207,10 +212,13 @@ def publish(conn: sqlite3.Connection, business: date, kind: str, params: EngineP
     now = wall_now_iso()
     cycle_id = new_id("dpy")
     bd = business.isoformat()
-    forecast_ids: dict[tuple[str, str, str], str] = {}
+    forecast_ids: dict[tuple[str, str, str], str] = {
+        (r[1], r[2], r[3]): r[0] for r in conn.execute(
+            "SELECT forecast_id, level, level_key, for_date FROM dp_forecast WHERE as_of_date = ? AND model_version = ?",
+            (bd, state.model_version))}  # a same-day reprice reuses the day's forecast rows (same as-of, same model)
     fc_rows = []
     f = result.features
-    for s, (level, key) in enumerate([] if compact else result.labels):
+    for s, (level, key) in enumerate([] if (compact or forecast_ids) else result.labels):
         z = float(result.credibility[s, 0])
         band = "high" if z >= FC.BAND_HIGH else ("medium" if z >= FC.CREDIBILITY_MIN else "low")
         for hi in range(result.p50.shape[1]):
@@ -230,15 +238,21 @@ def publish(conn: sqlite3.Connection, business: date, kind: str, params: EngineP
             conn.executemany("INSERT INTO dp_forecast (forecast_id, level, level_key, for_date, as_of_date, p10, p50, p90, "
                              "normal_level, credibility, confidence_band, method, model_version, created_at) "
                              "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)", fc_rows)
-            feat_rows, dec_rows, live_keys, sup_keys, inv_rows, hist_rows = [], [], [], [], [], []
+            feat_rows, feat_updates, dec_rows, live_keys, sup_keys, inv_rows, hist_rows = [], [], [], [], [], [], []
+            existing_features = {(r[1], r[2]): r[0] for r in conn.execute(
+                "SELECT feature_id, entity_id, for_date FROM dp_feature WHERE entity_type = 'room_type' AND as_of_date = ?", (bd,))}
             for p in priced:
                 d = p.decision
                 i = d.inputs
-                fid = new_id("dpx")
                 ft = p.feature
+                fid = existing_features.get((i.entity_id, i.for_date))
                 if compact:
                     fid = None
+                elif fid is not None:  # same-day reprice: refresh the day's snapshot (holds can change occupancy)
+                    feat_updates.append((ft["occupancy_pct"], ft["pace_ratio"], ft["cxl_rate_28d"], ft["comp_index"],
+                                         ft["event_score"], fid))
                 else:
+                    fid = new_id("dpx")
                     feat_rows.append((fid, "room_type", i.entity_id, ft["city_id"], i.for_date, bd, ft["lead_time_days"],
                                       ft["occupancy_pct"], ft["otb_bookings"], ft["otb_cancellations"], ft["otb_searches"],
                                       ft["otb_views"], ft["pace_ratio"], ft["cxl_rate_28d"], ft["comp_index"],
@@ -256,7 +270,8 @@ def publish(conn: sqlite3.Connection, business: date, kind: str, params: EngineP
                                  money_str(i.daily_anchor), money_str(i.weekly_anchor),
                                  factors_json(d, p.source, compact=compact),
                                  forecast_ids.get(p.forecast_key), fid, d.bounds.version, params.version, state.model_version,
-                                 p.source, p.approval_status, p.approval_reason, int(p.anomaly), int(p.is_live), now, now))
+                                 p.source, p.approval_status, p.approval_reason, p.feature.get("approved_by"),
+                                 int(p.anomaly), int(p.is_live), now, now))
                 sup_keys.append((now, i.entity_id, i.for_date))
                 if p.is_live:
                     live_keys.append((i.entity_id, i.for_date))
@@ -271,6 +286,8 @@ def publish(conn: sqlite3.Connection, business: date, kind: str, params: EngineP
                              "lead_time_days, occupancy_pct, otb_bookings, otb_cancellations, otb_searches, otb_views, "
                              "pace_ratio, cxl_rate_28d, comp_index, event_score, created_at) "
                              "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", feat_rows)
+            conn.executemany("UPDATE dp_feature SET occupancy_pct = ?, pace_ratio = ?, cxl_rate_28d = ?, comp_index = ?, "
+                             "event_score = ? WHERE feature_id = ?", feat_updates)
             conn.executemany("UPDATE dp_price_decision SET approval_status = 'superseded', updated_at = ? "
                              "WHERE entity_type = 'room_type' AND entity_id = ? AND for_date = ? "
                              "AND approval_status = 'pending_approval'", sup_keys)
@@ -280,8 +297,8 @@ def publish(conn: sqlite3.Connection, business: date, kind: str, params: EngineP
                 "INSERT INTO dp_price_decision (decision_id, cycle_id, business_date, entity_type, entity_id, for_date, "
                 "currency, baseline_price, raw_price, published_price, live_price_before, clamp_status, clamp_bound, "
                 "bound_value, clamp_chain, daily_anchor_price, weekly_anchor_price, factors, forecast_id, feature_id, "
-                "bounds_version, engine_config_version, model_version, source, approval_status, approval_reason, "
-                "anomaly_flag, is_live, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                "bounds_version, engine_config_version, model_version, source, approval_status, approval_reason, decided_by, "
+                "anomaly_flag, is_live, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 dec_rows)
             conn.executemany("UPDATE inventory_calendar SET price = ?, updated_at = ? WHERE entity_type = 'room_type' "
                              "AND entity_id = ? AND for_date = ?", inv_rows)
