@@ -94,8 +94,8 @@ def get_or_create(conn: sqlite3.Connection, entity_id: str, checkin: date, check
             if locale not in stored:  # same quote, same prices; reasons frozen per locale on first view
                 base = json.loads(stored[next(iter(stored))])
                 decisions = [dict(r) for r in conn.execute(
-                    f"SELECT * FROM dp_price_decision WHERE decision_id IN ({','.join('?' * len(base['nightly']))})",  # noqa: S608
-                    tuple(n["decision_id"] for n in base["nightly"]))]
+                    "SELECT * FROM dp_price_decision WHERE decision_id IN (SELECT value FROM json_each(?))",
+                    (json.dumps([n["decision_id"] for n in base["nightly"]]),))]
                 decisions.sort(key=lambda d: d["for_date"])
                 meta = _meta(conn, entity_id)
                 reasons, src = _reasons(conn, decisions, locale, meta["floor"], meta["ceiling"], meta["symbol"])
@@ -128,8 +128,8 @@ def _create(conn, key, entity_id, checkin, checkout, party, session_id, locale, 
     meta = _meta(conn, entity_id)
     days = [(checkin + timedelta(days=i)).isoformat() for i in range((checkout - checkin).days)]
     inv = {r["for_date"]: r for r in conn.execute(
-        f"SELECT * FROM inventory_calendar WHERE entity_type = 'room_type' AND entity_id = ? AND for_date IN ({','.join('?' * len(days))})",  # noqa: S608
-        (entity_id, *days))}
+        "SELECT * FROM inventory_calendar WHERE entity_type = 'room_type' AND entity_id = ? "
+        "AND for_date IN (SELECT value FROM json_each(?))", (entity_id, json.dumps(days)))}
     if len(inv) != len(days):
         raise infeasible("dates outside the priced calendar")
     first = inv[days[0]]
@@ -144,14 +144,14 @@ def _create(conn, key, entity_id, checkin, checkout, party, session_id, locale, 
         if r["currency"] != meta["currency"]:
             raise AppError("currency_mismatch", "calendar and bounds currencies differ", 409)
     decisions = [dict(r) for r in conn.execute(
-        f"SELECT * FROM dp_price_decision WHERE entity_type = 'room_type' AND entity_id = ? AND is_live = 1 "  # noqa: S608
-        f"AND for_date IN ({','.join('?' * len(days))}) ORDER BY for_date", (entity_id, *days))]
+        "SELECT * FROM dp_price_decision WHERE entity_type = 'room_type' AND entity_id = ? AND is_live = 1 "
+        "AND for_date IN (SELECT value FROM json_each(?)) ORDER BY for_date", (entity_id, json.dumps(days)))]
     if len(decisions) != len(days):
         raise infeasible("no published price for one or more nights")
     total = sum((dec(d["published_price"]) for d in decisions), ZERO)
     forecast_bands = [r[0] for r in conn.execute(
-        f"SELECT confidence_band FROM dp_forecast WHERE forecast_id IN ({','.join('?' * len(decisions))})",  # noqa: S608
-        tuple(d["forecast_id"] for d in decisions)) if r[0]]
+        "SELECT confidence_band FROM dp_forecast WHERE forecast_id IN (SELECT value FROM json_each(?))",
+        (json.dumps([d["forecast_id"] for d in decisions if d["forecast_id"]]),)) if r[0]]
     band = "low" if "low" in forecast_bands else ("medium" if "medium" in forecast_bands else "high")
     warnings = ["low_confidence"] if band == "low" else []
     quote_id = new_id("dpq")
@@ -164,9 +164,7 @@ def _create(conn, key, entity_id, checkin, checkout, party, session_id, locale, 
              "checkout_date": checkout.isoformat(), "party_size": party, "nightly": nightly, "total_price": money_str(total),
              "currency": meta["currency"], "expires_at": expires, "confidence_band": band, "warnings": warnings}
     body = _canonical(_body(quote, reasons, src, locale))
-    bounds_versions = {r[0]: r[1] for r in conn.execute(
-        "SELECT DISTINCT decision_id, bounds_version FROM dp_price_decision WHERE decision_id IN (%s)" % ",".join("?" * len(decisions)),  # noqa: S608
-        tuple(d["decision_id"] for d in decisions))}
+    bounds_versions = {d["decision_id"]: d["bounds_version"] for d in decisions}
     conn.execute(
         "INSERT INTO dp_quote (quote_id, key_hash, session_id, entity_type, entity_id, checkin_date, checkout_date, party_size, "
         "nightly, total_price, currency, locale, response_json, engine_config_version, bounds_versions, business_date, status, "

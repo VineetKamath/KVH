@@ -1,0 +1,28 @@
+{"prompt": "cap the event uplift at 10% and switch off the competitor factor for October", "expect": "accept", "config": {"factor_bounds": {"event": {"hi": "1.100"}}, "disable_factors": ["competitor"], "from_date": "2026-10-01", "to_date": "2026-10-31"}}
+{"prompt": "switch off the event factor", "expect": "accept", "config": {"disable_factors": ["event"]}}
+{"prompt": "what happens without the competitor factor?", "expect": "accept", "config": {"disable_factors": ["competitor"]}}
+{"prompt": "disable demand for November", "expect": "accept", "config": {"disable_factors": ["demand"], "from_date": "2026-11-01", "to_date": "2026-11-30"}}
+{"prompt": "lower the ceiling by 10%", "expect": "accept", "config": {"ceiling_change_pct": "-10"}}
+{"prompt": "raise the ceiling by 15%", "expect": "accept", "config": {"ceiling_change_pct": "15"}}
+{"prompt": "drop the floor by 5% in November", "expect": "accept", "config": {"floor_change_pct": "-5", "from_date": "2026-11-01", "to_date": "2026-11-30"}}
+{"prompt": "increase the floor by 8%", "expect": "accept", "config": {"floor_change_pct": "8"}}
+{"prompt": "set the auto-apply band to 5%", "expect": "accept", "config": {"auto_band_pct": "5"}}
+{"prompt": "cap the festival uplift at 5%", "expect": "accept", "config": {"factor_bounds": {"event": {"hi": "1.050"}}}}
+{"prompt": "limit the demand increase to 12%", "expect": "accept", "config": {"factor_bounds": {"demand": {"hi": "1.120"}}}}
+{"prompt": "cap the lead time discount at 3%", "expect": "accept", "config": {"factor_bounds": {"lead_time": {"lo": "0.970"}}}}
+{"prompt": "turn off the uncertainty damper", "expect": "accept", "config": {"disable_factors": ["uncertainty"]}}
+{"prompt": "ignore cancellations for October", "expect": "accept", "config": {"disable_factors": ["cancellation"], "from_date": "2026-10-01", "to_date": "2026-10-31"}}
+{"prompt": "disable seasonality and lower the ceiling by 20%", "expect": "accept", "config": {"disable_factors": ["seasonality"], "ceiling_change_pct": "-20"}}
+{"prompt": "remove the pace factor from 2026-10-01 to 2026-10-15", "expect": "accept", "config": {"disable_factors": ["pace"], "from_date": "2026-10-01", "to_date": "2026-10-15"}}
+{"prompt": "cap the market factor at 2%", "expect": "accept", "config": {"factor_bounds": {"competitor": {"hi": "1.020"}}}}
+{"prompt": "switch off events and set the auto band to 10%", "expect": "accept", "config": {"disable_factors": ["event"], "auto_band_pct": "10"}}
+{"prompt": "reduce the ceiling by 5% during November", "expect": "accept", "config": {"ceiling_change_pct": "-5", "from_date": "2026-11-01", "to_date": "2026-11-30"}}
+{"prompt": "cap the demand uplift at 20% for September", "expect": "accept", "config": {"factor_bounds": {"demand": {"hi": "1.200"}}, "from_date": "2026-09-01", "to_date": "2026-09-30"}}
+{"prompt": "lower the ceiling by 90%", "expect": "reject"}
+{"prompt": "set the price to 1 rupee", "expect": "reject"}
+{"prompt": "cap the weekend uplift at 10%", "expect": "reject"}
+{"prompt": "make it cheaper", "expect": "reject"}
+{"prompt": "cap the event uplift at 80%", "expect": "reject"}
+{"prompt": "raise the floor by 60%", "expect": "reject"}
+{"prompt": "what is the weather in Udaipur", "expect": "reject"}
+{"prompt": "set the auto band to 400%", "expect": "reject"}

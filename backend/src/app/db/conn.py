@@ -39,12 +39,15 @@ def connect_readonly(path: Path) -> sqlite3.Connection:
 
 
 def get_conn() -> sqlite3.Connection:
-    """One connection per thread (FastAPI runs sync endpoints in a thread pool)."""
-    conn = getattr(_local, "conn", None)
-    if conn is None:
-        conn = connect()
-        _local.conn = conn
-    return conn
+    """One connection per thread (FastAPI runs sync endpoints in a thread pool), keyed by database path so a
+    changed PIXELMINDS_DB (tests, snapshot restore) never keeps serving the old file."""
+    path = get_settings().db_path
+    cached = getattr(_local, "conn", None)
+    if cached is None or cached[0] != path:
+        if cached is not None:
+            cached[1].close()
+        _local.conn = (path, connect(path))
+    return _local.conn[1]
 
 
 @contextmanager

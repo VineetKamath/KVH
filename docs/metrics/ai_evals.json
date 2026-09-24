@@ -1,0 +1,31 @@
+{
+  "mode": "offline (rules)",
+  "whatif": {
+    "valid_parsed": 20,
+    "valid_total": 20,
+    "malformed_rejected": 8,
+    "malformed_total": 8,
+    "pass": true,
+    "failures": []
+  },
+  "events": {
+    "accuracy": 1.0,
+    "micro_precision": 1.0,
+    "per_class": {
+      "minor": {
+        "precision": 1.0,
+        "recall": 1.0
+      },
+      "moderate": {
+        "precision": 1.0,
+        "recall": 1.0
+      },
+      "major": {
+        "precision": 1.0,
+        "recall": 1.0
+      }
+    },
+    "rows": 30,
+    "pass": true
+  }
+}

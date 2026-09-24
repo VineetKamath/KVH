@@ -1,0 +1,51 @@
+{
+  "window_days": 56,
+  "window_scores": {
+    "28": 0.8153847571857665,
+    "56": 0.8044471784634105,
+    "90": 0.8085415260521432,
+    "180": 0.8711152118991885
+  },
+  "pickup": {
+    "city_day_mae": 0.0795136690926416,
+    "city_day_poisson_deviance": 0.2700088771740412,
+    "national_day_wape": 0.36337481428421503,
+    "national_week_wape": 0.11472323519673977,
+    "cells": 10620,
+    "national_week_accuracy": 0.8852767648032602,
+    "national_day_accuracy": 0.636625185715785
+  },
+  "naive": {
+    "city_day_mae": 0.10944580034449368,
+    "city_day_poisson_deviance": 0.34081972363880947,
+    "national_day_wape": 0.439405855702818,
+    "national_week_wape": 0.12995097077639994,
+    "cells": 10620,
+    "national_week_accuracy": 0.8700490292236001,
+    "national_day_accuracy": 0.560594144297182
+  },
+  "improvement_vs_naive": {
+    "city_day_mae": 0.27348816635848183,
+    "city_day_poisson_deviance": 0.20776628097912397
+  },
+  "interval": {
+    "pickup_conformal": {
+      "coverage": 0.8101694915254237,
+      "interval_score": 2.1977290048117055
+    },
+    "lgbm_quantile": {
+      "coverage": 0.8832929782082325,
+      "interval_score": 2.2756783989126346
+    }
+  },
+  "protocol": {
+    "train_origins": "weekly 2025-10-01 \u2192 2026-04-01 (targets < 2026-06-01)",
+    "test_origins": [
+      "2026-06-01",
+      "2026-06-15",
+      "2026-07-01"
+    ],
+    "horizon_days": 60,
+    "data": "DynamicPricing/data/APS-02.db (read-only)"
+  }
+}

@@ -181,11 +181,27 @@ def render_template(fx: dict, locale: str, floor: Decimal, ceiling: Decimal, sym
 
 
 def cached(conn: sqlite3.Connection, decision_id: str, locale: str) -> list[str] | None:
-    row = conn.execute("SELECT text FROM dp_narration WHERE decision_id = ? AND locale = ? AND gate_passed = 1",
-                       (decision_id, locale)).fetchone()
+    row = conn.execute("SELECT text FROM dp_narration WHERE decision_id = ? AND locale = ? AND gate_passed = 1 "
+                       "AND fallback_used = 0", (decision_id, locale)).fetchone()
     return json.loads(row[0]) if row else None
 
 
+DEMO_ENTITY = "rmt_039a87b5"
+DEMO_DAYS = 14
+
+
 def pregenerate_demo(conn: sqlite3.Connection) -> int:
-    """Replaced in Phase 6 by the LLM narrator; templates need no pre-generation."""
-    return 0
+    """With a live key: LLM-narrate the demo room's next DEMO_DAYS live prices in all three locales (gated).
+    Offline, templates need no pre-generation (they are deterministic and gated on every render)."""
+    from app.ai.llm import provider
+    from app.ai.narrator.narrator import narrate_decision
+
+    if not provider.available():
+        return 0
+    ids = [r[0] for r in conn.execute("SELECT decision_id FROM dp_price_decision WHERE entity_id = ? AND is_live = 1 "
+                                      "ORDER BY for_date LIMIT ?", (DEMO_ENTITY, DEMO_DAYS))]
+    done = 0
+    for did in ids:
+        for loc in LOCALES:
+            done += narrate_decision(conn, did, loc)["source"] == "llm"
+    return done

@@ -12,7 +12,7 @@ def load_events(conn: sqlite3.Connection) -> pd.DataFrame:
     first 10 characters are the local calendar date."""
     df = pd.read_sql_query(
         "SELECT e.event_type, e.city_id, c.region, e.entity_id, substr(e.occurred_at, 1, 10) AS occurred_date, "
-        "e.for_date, e.lead_time_days FROM pricing_events e JOIN cities c ON c.city_id = e.city_id "
+        "e.for_date, e.lead_time_days, e.quoted_price FROM pricing_events e JOIN cities c ON c.city_id = e.city_id "
         "WHERE e.entity_type = 'room_type'", conn)
     df["occurred_date"] = df["occurred_date"].map(date.fromisoformat)
     df["for_date"] = df["for_date"].map(date.fromisoformat)

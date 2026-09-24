@@ -127,5 +127,6 @@ def compute_factors(inp: PriceInputs, params: EngineParams) -> tuple[Factor, ...
     for f in ordered:
         product *= f.value
     ordered.append(uncertainty(inp, params, product))
-    assert tuple(f.name for f in ordered) == FACTOR_ORDER
+    if tuple(f.name for f in ordered) != FACTOR_ORDER:
+        raise RuntimeError("factor order drifted from the explanation contract")
     return tuple(ordered)

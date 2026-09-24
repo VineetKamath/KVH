@@ -43,19 +43,13 @@ def curve(conn: sqlite3.Connection, entity_id: str, from_date: str | None = None
                      "AND entity_id = ?", (entity_id,)).fetchone()
     if b is None:
         raise invalid_id("room")
-    params: list = [entity_id]
-    where = ""
-    if from_date:
-        where += " AND d.for_date >= ?"
-        params.append(from_date)
-    if to_date:
-        where += " AND d.for_date <= ?"
-        params.append(to_date)
     live = conn.execute(
         "SELECT d.decision_id, d.for_date, d.baseline_price, d.raw_price, d.published_price, d.clamp_status, d.clamp_bound, "
         "d.bound_value, d.source, d.approval_status, d.anomaly_flag, f.p10, f.p50, f.p90, f.confidence_band "
         "FROM dp_price_decision d LEFT JOIN dp_forecast f ON f.forecast_id = d.forecast_id "
-        f"WHERE d.entity_type = 'room_type' AND d.entity_id = ? AND d.is_live = 1{where} ORDER BY d.for_date", params).fetchall()  # noqa: S608
+        "WHERE d.entity_type = 'room_type' AND d.entity_id = ? AND d.is_live = 1 "
+        "AND (? IS NULL OR d.for_date >= ?) AND (? IS NULL OR d.for_date <= ?) ORDER BY d.for_date",
+        (entity_id, from_date, from_date, to_date, to_date)).fetchall()
     pending = {r["for_date"]: r for r in conn.execute(
         "SELECT decision_id, for_date, published_price, approval_reason FROM dp_price_decision WHERE entity_type = 'room_type' "
         "AND entity_id = ? AND approval_status = 'pending_approval'", (entity_id,))}

@@ -46,3 +46,13 @@ PSI_ALERT = 0.25             # conventional population-stability threshold for a
 PSI_BINS = 10
 COVERAGE_BAND = (0.70, 0.90)  # monitor alert band around the 0.80 target
 KAPPA_LOOKBACK_WEEKS = 52    # history used to estimate the signal variance behind credibility κ
+
+# price response (simulator only; ARCHITECTURE §7.6) — a stated prior, not a fitted value
+ELASTICITY_PRIOR_MEAN = -1.0     # hotel-literature midpoint
+ELASTICITY_PRIOR_SD = 0.5
+PRICE_RATIO_BUCKETS = (0.0, 0.85, 0.95, 1.05, 1.15, float("inf"))
+ELASTICITY_MIN_CELL_EVENTS = 3
+ELASTICITY_MIN_CELLS = 10
+Z_80 = 1.2816                    # two-sided 80% normal interval
+MAD_SCALE = 1.4826               # MAD → standard deviation under normality
+TINY = 1e-6

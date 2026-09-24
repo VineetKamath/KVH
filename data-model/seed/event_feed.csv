@@ -1,0 +1,31 @@
+feed_id,city_name,title,venue,start_date,end_date,expected_attendance,source_ref,description
+ef01,Jaipur,Diwali,Citywide,2026-11-07,2026-11-10,1000000,Government of India gazetted holidays 2026,National festival of lights; markets and bazaars illuminated
+ef02,Jaipur,Dussehra,Ramlila Maidan,2026-10-20,2026-10-21,200000,Government of India gazetted holidays 2026,National holiday; effigy burning events across the city
+ef03,Jaipur,Jaipur Heritage Walk Week,Old City,2026-09-20,2026-09-26,3000,Rajasthan Tourism events page (dates approximate - confirm),Guided heritage walks for small groups
+ef04,Jaisalmer,Sharad Navratri,Citywide,2026-10-11,2026-10-19,60000,Government of Rajasthan tourism calendar 2026,Nine nights of Garba and temple visits
+ef05,Jaisalmer,Desert Photography Workshop,Sam Sand Dunes,2026-10-03,2026-10-04,150,Local operator listing,Weekend workshop for amateur photographers
+ef06,Lucknow,Chhath Puja,Gomti riverbanks,2026-11-15,2026-11-16,150000,Uttar Pradesh government holiday list 2026 (dates approximate - confirm),Major festival for families from eastern UP and Bihar
+ef07,Lucknow,Lucknow Literature Festival,Sangeet Natak Akademi,2026-10-23,2026-10-25,8000,Organiser announcement (dates to confirm),Author talks and book launches
+ef08,Lucknow,Diwali,Citywide,2026-11-07,2026-11-10,800000,Government of India gazetted holidays 2026,Largest national holiday; visiting-family travel
+ef09,Varanasi,Dev Deepawali,Ganga ghats,2026-11-24,2026-11-24,500000,Uttar Pradesh Tourism events page,Ghats lit with a million lamps on Kartik Purnima
+ef10,Varanasi,Ganga Mahotsav,Rajghat,2026-11-20,2026-11-24,50000,Uttar Pradesh Tourism events page (dates approximate - confirm),Classical music and dance festival on the ghats
+ef11,Varanasi,Riverfront Cleanliness Drive,Assi Ghat,2026-09-12,2026-09-12,400,Municipal notice,Volunteer clean-up morning
+ef12,Amritsar,Diwali (Bandi Chhor Divas),Golden Temple,2026-11-07,2026-11-09,300000,Government of India gazetted holidays 2026,Golden Temple illuminations; pilgrim and leisure travel peak
+ef13,Amritsar,Guru Nanak Jayanti,Golden Temple,2026-11-24,2026-11-24,250000,Government of India gazetted holidays 2026,Gurpurab celebrations; large pilgrim arrivals
+ef14,Amritsar,Punjab Food Walk,Hall Bazaar,2026-10-10,2026-10-10,200,Local operator listing,Evening street-food tour
+ef15,Puri,Kartik Purnima,Puri beach and temple,2026-11-24,2026-11-24,100000,Odisha Tourism festival calendar,Pilgrim bathing festival
+ef16,Puri,Puri Beach Festival,Blue Flag Beach,2026-11-23,2026-11-27,40000,Odisha Tourism festival calendar (dates approximate - confirm),Sand art and cultural programmes
+ef17,Darjeeling,Durga Puja,Citywide,2026-10-17,2026-10-21,70000,West Bengal government holiday list 2026,West Bengal's largest festival; hill-station leisure travel
+ef18,Darjeeling,Tea Garden Open Day,Happy Valley Estate,2026-09-26,2026-09-26,500,Estate announcement,Factory tours and tastings
+ef19,Kolkata,Durga Puja,Citywide,2026-10-17,2026-10-21,5000000,West Bengal government holiday list 2026,City-wide pandal hopping; one of the largest festivals in India
+ef20,Kolkata,Kali Puja,Citywide,2026-11-08,2026-11-08,400000,West Bengal government holiday list 2026,Coincides with Diwali; night-long celebrations
+ef21,Agra,Taj Mahotsav Preview Night,Shilpgram,2026-10-31,2026-10-31,2500,Uttar Pradesh Tourism events page (dates to confirm),One-evening preview of the February festival
+ef22,Agra,Diwali,Citywide,2026-11-07,2026-11-10,300000,Government of India gazetted holidays 2026,National holiday; domestic tourism to the Taj Mahal
+ef23,Ahmedabad,Navratri Garba,GMDC Ground,2026-10-11,2026-10-19,500000,Gujarat Tourism events page,Nine nights of Garba; Gujarat's largest festival
+ef24,New Delhi,India International Trade Fair,Bharat Mandapam,2026-11-14,2026-11-27,1000000,ITPO announcement (dates approximate - confirm),Large trade fair; business and domestic travel
+ef25,New Delhi,Delhi Half Marathon,Jawaharlal Nehru Stadium,2026-10-18,2026-10-18,35000,Organiser announcement (dates approximate - confirm),City half marathon with national participation
+ef26,Srinagar,Autumn Tulip Photo Walk,Nishat Bagh,2026-10-05,2026-10-05,120,Local operator listing,Guided photography walk
+ef27,Munnar,Neelakurinji Viewpoint Weekend,Eravikulam National Park,2026-09-19,2026-09-20,6000,Kerala Tourism update (dates approximate - confirm),Seasonal viewing weekend at the national park
+ef28,Udaipur,Udaipur World Music Festival,Fateh Sagar Lake,2026-11-13,2026-11-15,20000,Organiser announcement (dates approximate - confirm),Three-day international music festival
+ef29,Udaipur,Lake Pichola Boat Race,Lake Pichola,2026-10-04,2026-10-04,1500,Local club notice,Amateur rowing regatta
+ef30,Dubai,GITEX Global,Dubai World Trade Centre,2026-10-12,2026-10-16,180000,Organiser announcement (dates approximate - confirm),Large technology trade show; business travel peak

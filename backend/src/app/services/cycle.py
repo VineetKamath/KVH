@@ -47,12 +47,16 @@ class Priced:
     forecast_key: tuple[str, str, str]
 
 
+_ANCHOR_SQL = ("SELECT entity_id, for_date, published_price FROM (SELECT entity_id, for_date, published_price, "
+               "ROW_NUMBER() OVER (PARTITION BY entity_id, for_date ORDER BY business_date DESC, created_at DESC, "
+               "decision_id DESC) rn FROM dp_price_decision WHERE entity_type = 'room_type' AND business_date {op} ? "
+               "AND approval_status IN ('auto_applied','approved')) WHERE rn = 1")
+ANCHOR_SQL_EXCLUSIVE = _ANCHOR_SQL.replace("{op}", "<")
+ANCHOR_SQL_INCLUSIVE = _ANCHOR_SQL.replace("{op}", "<=")
+
+
 def _anchor_prices(conn: sqlite3.Connection, before: date, inclusive: bool = False) -> dict[tuple[str, str], Decimal]:
-    op = "<=" if inclusive else "<"
-    sql = (f"SELECT entity_id, for_date, published_price FROM (SELECT entity_id, for_date, published_price, "  # noqa: S608 - op is a constant
-           f"ROW_NUMBER() OVER (PARTITION BY entity_id, for_date ORDER BY business_date DESC, created_at DESC, decision_id DESC) rn "
-           f"FROM dp_price_decision WHERE entity_type = 'room_type' AND business_date {op} ? "
-           f"AND approval_status IN ('auto_applied','approved')) WHERE rn = 1")
+    sql = ANCHOR_SQL_INCLUSIVE if inclusive else ANCHOR_SQL_EXCLUSIVE
     return {(r[0], r[1]): dec(r[2]) for r in conn.execute(sql, (before.isoformat(),))}
 
 
@@ -219,14 +223,14 @@ def publish(conn: sqlite3.Connection, business: date, kind: str, params: EngineP
     fc_rows = []
     f = result.features
     for s, (level, key) in enumerate([] if (compact or forecast_ids) else result.labels):
-        z = float(result.credibility[s, 0])
-        band = "high" if z >= FC.BAND_HIGH else ("medium" if z >= FC.CREDIBILITY_MIN else "low")
+        z = to_dec(result.credibility[s, 0])
+        band = "high" if z >= Decimal(str(FC.BAND_HIGH)) else ("medium" if z >= Decimal(str(FC.CREDIBILITY_MIN)) else "low")
         for hi in range(result.p50.shape[1]):
             fd = (EPOCH + timedelta(days=int(f.stay_day[hi]))).isoformat()
             fid = new_id("dpf")
             forecast_ids[(level, key, fd)] = fid
             fc_rows.append((fid, level, key, fd, bd, f"{result.p10[s, hi]:.4f}", f"{result.p50[s, hi]:.4f}",
-                            f"{result.p90[s, hi]:.4f}", f"{result.normal[s, hi]:.4f}", f"{z:.4f}", band,
+                            f"{result.p90[s, hi]:.4f}", f"{result.normal[s, hi]:.4f}", str(z.quantize(Decimal("0.0001"))), band,
                             _method(result.method), state.model_version, now))
     n_clamped = 0
     with _cycle_lock:
