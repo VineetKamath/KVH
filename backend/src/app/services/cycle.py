@@ -198,8 +198,10 @@ def price_all(conn: sqlite3.Connection, business: date, kind: str, params: Engin
 
 
 def publish(conn: sqlite3.Connection, business: date, kind: str, params: EngineParams, priced: list[Priced],
-            context: dict, actor: str = "system", reason: str | None = None) -> dict:
-    """Write one cycle atomically. Caller must NOT already hold a transaction."""
+            context: dict, actor: str = "system", reason: str | None = None, compact: bool = False) -> dict:
+    """Write one cycle atomically. Caller must NOT already hold a transaction.
+    compact=True (early warm-up days only): decisions keep their inputs, price, clamp and waterfall, but no
+    per-day feature/forecast rows are stored (docs/DECISIONS.md D-08)."""
     result: ForecastResult = context["result"]
     state = context["state"]
     now = wall_now_iso()
@@ -208,7 +210,7 @@ def publish(conn: sqlite3.Connection, business: date, kind: str, params: EngineP
     forecast_ids: dict[tuple[str, str, str], str] = {}
     fc_rows = []
     f = result.features
-    for s, (level, key) in enumerate(result.labels):
+    for s, (level, key) in enumerate([] if compact else result.labels):
         z = float(result.credibility[s, 0])
         band = "high" if z >= FC.BAND_HIGH else ("medium" if z >= FC.CREDIBILITY_MIN else "low")
         for hi in range(result.p50.shape[1]):
@@ -234,9 +236,13 @@ def publish(conn: sqlite3.Connection, business: date, kind: str, params: EngineP
                 i = d.inputs
                 fid = new_id("dpx")
                 ft = p.feature
-                feat_rows.append((fid, "room_type", i.entity_id, ft["city_id"], i.for_date, bd, ft["lead_time_days"],
-                                  ft["occupancy_pct"], ft["otb_bookings"], ft["otb_cancellations"], ft["otb_searches"],
-                                  ft["otb_views"], ft["pace_ratio"], ft["cxl_rate_28d"], ft["comp_index"], ft["event_score"], now))
+                if compact:
+                    fid = None
+                else:
+                    feat_rows.append((fid, "room_type", i.entity_id, ft["city_id"], i.for_date, bd, ft["lead_time_days"],
+                                      ft["occupancy_pct"], ft["otb_bookings"], ft["otb_cancellations"], ft["otb_searches"],
+                                      ft["otb_views"], ft["pace_ratio"], ft["cxl_rate_28d"], ft["comp_index"],
+                                      ft["event_score"], now))
                 clamped = d.clamp_status == "clamped" and p.source == "engine"
                 status = ("clamped" if clamped else "accepted") if p.source == "engine" else "not_applicable"
                 if clamped and p.is_live:
@@ -247,7 +253,8 @@ def publish(conn: sqlite3.Connection, business: date, kind: str, params: EngineP
                                  d.guardrail.clamp_bound if p.source == "engine" else None,
                                  money_str(d.guardrail.bound_value) if (p.source == "engine" and d.guardrail.bound_value is not None) else None,
                                  chain_json(d) if p.source == "engine" else "[]",
-                                 money_str(i.daily_anchor), money_str(i.weekly_anchor), factors_json(d, p.source),
+                                 money_str(i.daily_anchor), money_str(i.weekly_anchor),
+                                 factors_json(d, p.source, compact=compact),
                                  forecast_ids.get(p.forecast_key), fid, d.bounds.version, params.version, state.model_version,
                                  p.source, p.approval_status, p.approval_reason, int(p.anomaly), int(p.is_live), now, now))
                 sup_keys.append((now, i.entity_id, i.for_date))
@@ -311,7 +318,7 @@ def _method(m: str) -> str:
 
 
 def run_cycle(conn: sqlite3.Connection, kind: str, business: date | None = None, actor: str = "system",
-              reason: str | None = None) -> dict:
+              reason: str | None = None, compact: bool = False) -> dict:
     business = business or business_date(conn)
     conn.execute("BEGIN IMMEDIATE")
     try:
@@ -322,7 +329,7 @@ def run_cycle(conn: sqlite3.Connection, kind: str, business: date | None = None,
         raise
     params = config_service.engine_params(conn)
     priced, ctx = price_all(conn, business, kind, params)
-    return publish(conn, business, kind, params, priced, ctx, actor=actor, reason=reason)
+    return publish(conn, business, kind, params, priced, ctx, actor=actor, reason=reason, compact=compact)
 
 
 def advance_day(conn: sqlite3.Connection, actor: str, reason: str | None = None) -> dict:
@@ -346,7 +353,7 @@ def warmup_replay(conn: sqlite3.Connection, start: date, end: date) -> dict:
         conn.execute("BEGIN IMMEDIATE")
         set_business_date(conn, d)
         conn.execute("COMMIT")
-        out = run_cycle(conn, "warmup", d, actor="seed", reason="warm-up replay")
+        out = run_cycle(conn, "warmup", d, actor="seed", reason="warm-up replay", compact=d < end)
         stats["cycles"] += 1
         stats["decisions"] += out["decisions"]
         stats["clamped_last"] = out["clamped_live"]

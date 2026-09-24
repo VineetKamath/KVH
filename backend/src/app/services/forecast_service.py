@@ -26,6 +26,25 @@ _lock = threading.Lock()
 _cache: dict[int, ForecastState] = {}
 
 
+def jsonable(o):
+    """Recursively convert numpy scalars and non-finite floats so the result is STRICT JSON (json_valid)."""
+    import math
+
+    if isinstance(o, dict):
+        return {str(k): jsonable(v) for k, v in o.items()}
+    if isinstance(o, (list, tuple)):
+        return [jsonable(v) for v in o]
+    if hasattr(o, "item"):
+        o = o.item()
+    if isinstance(o, float) and not math.isfinite(o):
+        return None
+    return o
+
+
+def strict_dumps(o) -> str:
+    return json.dumps(jsonable(o), allow_nan=False, default=str)
+
+
 def _to_json(state: ForecastState) -> str:
     d = asdict(state)
     if d["quantile_models"] is not None:
@@ -39,6 +58,7 @@ def _from_json(text: str) -> ForecastState:
         d["quantile_models"] = {float(k): v for k, v in d["quantile_models"].items()}
     d["conformal"] = tuple(d["conformal"])
     d["skill_by_level"] = {int(k): v for k, v in d["skill_by_level"].items()}
+    d["kappa_by_level"] = {int(k): (float("inf") if v is None else float(v)) for k, v in d.get("kappa_by_level", {}).items()}
     d["window_scores"] = {int(k): v for k, v in d["window_scores"].items()}
     return ForecastState(**d)
 
@@ -84,21 +104,21 @@ def record_selection(conn: sqlite3.Connection, state: ForecastState) -> None:
               "month_index": state.params.get("month_index"), "dow_index": state.params.get("dow_index"),
               "window_days": state.window, "window_scores": state.window_scores, "aci_alpha": state.alpha,
               "cqr_Q": state.Q, "monitor": state.monitor}
-    clean = json.loads(json.dumps(params, default=lambda o: o.item() if hasattr(o, "item") else str(o)))
+    clean = jsonable(params)
     now = wall_now_iso()
     conn.execute(
         "INSERT INTO dp_model_selection (selection_id, as_of_date, window_from_date, window_to_date, component, champion, "
         "challenger, scores, dm_p_value, decision, params, created_at) VALUES (?,?,?,?, 'p50', ?,?,?,?,?,?,?)",
         (new_id("dpms"), as_of, start, as_of, sel["champion"], sel.get("challenger"),
-         json.dumps({"per_origin": sel["scores_per_origin"], "pooled": sel["pooled_deviance"],
-                     "gain_vs_naive": sel.get("gain_vs_naive")}),
-         None if sel.get("p_value") is None else str(sel["p_value"]), sel["decision"], json.dumps(clean), now))
+         strict_dumps({"per_origin": sel["scores_per_origin"], "pooled": sel["pooled_deviance"],
+                       "gain_vs_naive": sel.get("gain_vs_naive")}),
+         None if sel.get("p_value") is None else str(sel["p_value"]), sel["decision"], strict_dumps(clean), now))
     conn.execute(
         "INSERT INTO dp_model_selection (selection_id, as_of_date, window_from_date, window_to_date, component, champion, "
         "challenger, scores, dm_p_value, decision, params, created_at) VALUES (?,?,?,?, 'interval', ?,?,?,?,?,?,?)",
         (new_id("dpms"), as_of, start, as_of, iv["method"],
-         "pickup_lgbmq" if iv["method"] != "pickup_lgbmq" else "pickup_conformal", json.dumps(iv["scores"]), None,
-         "keep" if iv["method"] != "trailing_naive" else "fallback_naive", json.dumps(clean), now))
+         "pickup_lgbmq" if iv["method"] != "pickup_lgbmq" else "pickup_conformal", strict_dumps(iv["scores"]), None,
+         "keep" if iv["method"] != "trailing_naive" else "fallback_naive", strict_dumps(clean), now))
 
 
 def reset_cache() -> None:

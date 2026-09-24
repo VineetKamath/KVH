@@ -23,8 +23,13 @@ def inputs_json(inp: PriceInputs) -> dict:
     }
 
 
-def factors_json(d: Decision, source: str) -> str:
+def factors_json(d: Decision, source: str, compact: bool = False) -> str:
     contrib = {w.step: w for w in d.waterfall}
+    if compact:
+        return json.dumps({"inputs": inputs_json(d.inputs), "compact": True,
+                           "items": [{"name": f.name, "value": str(f.value)} for f in d.factors],
+                           "waterfall": [{"step": w.step, "contribution": money_str(w.contribution)} for w in d.waterfall]},
+                          sort_keys=True, separators=(",", ":"), default=str)
     items = [{"name": f.name, "value": str(f.value), "unclamped": str(f.unclamped), "lo": str(f.lo), "hi": str(f.hi),
               "evidence": f.evidence, "contribution": money_str(contrib[f.name].contribution)} for f in d.factors]
     steps = [{"step": w.step if (w.step != "guardrail" or source == "engine") else source,

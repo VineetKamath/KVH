@@ -31,6 +31,7 @@ class ForecastState:
     kappa: float
     tau2_rel: float
     skill_by_level: dict[int, float]
+    kappa_by_level: dict[int, float]
     quantile_models: dict[float, str] | None
     point_model: str | None
     Q: float
@@ -73,7 +74,7 @@ def _complete_mask(f: OriginFeatures, as_of: int) -> np.ndarray:
 
 
 def _stack(p: Panel, as_of: int, origins: list[int], window: int, seasons: dict[int, dict]) -> dict:
-    X, y7, p50, naive, level, oid = [], [], [], [], [], []
+    X, y7, p50, naive, level, oid, sid, normal = [], [], [], [], [], [], [], []
     for i, t in enumerate(origins):
         f = origin_features(p, t, C.HORIZON_DAYS, window, seasons[t])
         _, r7 = realised(p, t, C.HORIZON_DAYS)
@@ -83,9 +84,33 @@ def _stack(p: Panel, as_of: int, origins: list[int], window: int, seasons: dict[
         p50.append(f.p50_7.ravel()[m])
         naive.append(f.naive7.ravel()[m])
         level.append(np.repeat(f.level, f.p50_7.shape[1])[m])
+        sid.append(np.repeat(np.arange(f.p50_7.shape[0]), f.p50_7.shape[1])[m])
+        normal.append((f.rate[:, None] * C.WINDOW_DAYS * f.season7[None, :]).ravel()[m])
         oid.append(np.full(int(m.sum()), i))
     cat = np.concatenate
-    return {"X": np.vstack(X), "y7": cat(y7), "p50": cat(p50), "naive": cat(naive), "level": cat(level), "origin": cat(oid)}
+    return {"X": np.vstack(X), "y7": cat(y7), "p50": cat(p50), "naive": cat(naive), "level": cat(level),
+            "origin": cat(oid), "series": cat(sid), "normal": cat(normal)}
+
+
+def within_series_kappa(stack: dict) -> dict[int, float]:
+    """Bühlmann κ per level from the OVER-TIME variance of realised demand relative to each series' own
+    expectation, beyond Poisson noise (persistent between-series differences are excluded: each series is
+    centred on its own mean). κ = 1/τ²; τ² = 0 ⇒ κ = ∞ ⇒ that level's dynamic signal is noise and gets no weight."""
+    out = {}
+    for lvl in (0, 1, 2):
+        m = (stack["level"] == lvl) & (stack["normal"] > 0)
+        e, r, s = stack["normal"][m], stack["y7"][m] / stack["normal"][m], stack["series"][m]
+        tot = noise = wsum = 0.0
+        for k in np.unique(s):
+            mk = s == k
+            w = e[mk]
+            mu = float(np.average(r[mk], weights=w))
+            tot += float(np.sum(w * (r[mk] - mu) ** 2))
+            noise += float(np.sum(w / e[mk]))
+            wsum += float(w.sum())
+        tau2 = max(0.0, tot / wsum - noise / wsum) if wsum > 0 else 0.0
+        out[lvl] = kappa_from_signal_variance(tau2)
+    return out
 
 
 def _kappa(p: Panel, as_of: int) -> tuple[float, float]:
@@ -176,6 +201,7 @@ def fit(p: Panel, as_of: int, use_lightgbm: bool = True) -> ForecastState:
                                             conf_hi[ca["origin"] == i])} for i in range(len(calib))]
 
     kappa, tau2 = _kappa(p, as_of)
+    kappa_by_level = within_series_kappa(tr)
     current = origin_features(p, as_of, C.HORIZON_DAYS, window, seasons[as_of])
     # drift check: the lead-time mix of bookings made in the recent window vs the preceding lookback
     bk = p.typ == type_code("booking")
@@ -186,12 +212,12 @@ def fit(p: Panel, as_of: int, use_lightgbm: bool = True) -> ForecastState:
     mon = monitor.evaluate(selection, used_trace, feature_psi, {})
     version = f"{MODEL_FAMILY}@{as_of}:w{window}"
     return ForecastState(as_of=as_of, model_version=version, window=window, kappa=kappa, tau2_rel=tau2,
-                         skill_by_level=skill_by_level,
+                         skill_by_level=skill_by_level, kappa_by_level=kappa_by_level,
                          quantile_models=q_models if method == "pickup_lgbmq" else None, point_model=point_model,
                          Q=Q, alpha=alpha, interval_method=method, conformal=(r_lo, r_hi), selection=selection,
                          interval_selection=interval_selection, window_scores=window_scores, coverage_trace=trace,
                          monitor=mon, params={**current.params, "kappa": kappa, "tau2_rel": tau2,
-                                 "skill_by_level": skill_by_level})
+                                 "skill_by_level": skill_by_level, "kappa_by_level": kappa_by_level})
 
 
 def predict(p: Panel, state: ForecastState, as_of: int, horizon: int) -> ForecastResult:
@@ -216,11 +242,35 @@ def predict(p: Panel, state: ForecastState, as_of: int, horizon: int) -> Forecas
         lo, hi = split_conformal_band(p50g, *state.conformal)
     ret = f.retention[:, None]
     normal = f.rate[:, None] * C.WINDOW_DAYS * f.season7[None, :]
-    ratio = np.divide(p50g, normal, out=np.ones_like(p50g), where=normal > 0)
-    z = np.array([state.skill_by_level.get(int(lv), 0.0) for lv in f.level])[:, None] * np.ones((1, H))
+    raw_ratio = np.divide(p50g, normal, out=np.ones_like(p50g), where=normal > 0)
     rel_width = (hi - lo) / np.maximum(p50g, C.MIN_P50_FOR_WIDTH)
     expected_otb = f.rate[:, None] * C.WINDOW_DAYS * f.season7[None, :] * (1 - f.pick)
-    pace = (f.otb7["booking"] + 1) / (expected_otb + 1)
+    raw_pace = (f.otb7["booking"] + 1) / (expected_otb + 1)
+
+    # Hierarchical Bühlmann credibility: national → 1, region → national posterior, city → its region's posterior.
+    # z = E / (E + κ_level): thin series move little, dense series move more; κ is estimated in fit().
+    def z_of(level: int, e: np.ndarray) -> np.ndarray:
+        k = state.kappa_by_level.get(level, float("inf"))
+        return np.zeros_like(e) if not np.isfinite(k) else e / (e + k)
+
+    n_city, n_reg = p.n_city, len(p.regions)
+    z = np.zeros_like(p50g)
+    ratio = np.ones_like(p50g)
+    pace = np.ones_like(p50g)
+    nat = S - 1
+    z[nat] = z_of(2, normal[nat])
+    ratio[nat] = 1 + z[nat] * (raw_ratio[nat] - 1)
+    pace[nat] = 1 + z[nat] * (raw_pace[nat] - 1)
+    for r_i in range(n_reg):
+        s_i = n_city + r_i
+        z[s_i] = z_of(1, normal[s_i])
+        ratio[s_i] = ratio[nat] + z[s_i] * (raw_ratio[s_i] - ratio[nat])
+        pace[s_i] = pace[nat] + z[s_i] * (raw_pace[s_i] - pace[nat])
+    for c_i in range(n_city):
+        parent = n_city + int(p.city_region[c_i])
+        z[c_i] = z_of(0, normal[c_i])
+        ratio[c_i] = ratio[parent] + z[c_i] * (raw_ratio[c_i] - ratio[parent])
+        pace[c_i] = pace[parent] + z[c_i] * (raw_pace[c_i] - pace[parent])
     b28 = recent_occurred_counts(p, as_of, C.CANCEL_RECENT_DAYS, "booking")
     c28 = recent_occurred_counts(p, as_of, C.CANCEL_RECENT_DAYS, "cancellation")
     long_share = 1 - f.retention

@@ -53,17 +53,19 @@ def seasonality(inp: PriceInputs, params: EngineParams) -> Factor:
 
 
 def demand(inp: PriceInputs, params: EngineParams) -> Factor:
+    """`demand_ratio` is already the credibility-weighted (Bühlmann) posterior: forecast vs normal, shrunk
+    city → region → national in proportion to evidence. `credibility` is reported, not applied twice."""
     ratio = _safe(inp.demand_ratio, ONE, lo=ZERO)
     z = _safe(inp.credibility, ZERO, lo=ZERO, hi=ONE)
-    m = ONE + z * (ratio - ONE)
+    m = ratio
     return _bounded("demand", m, params, {"forecast_vs_normal": _ev(ratio),
                                           "credibility": _ev(z)})
 
 
 def pace(inp: PriceInputs, params: EngineParams) -> Factor:
+    """`pace_ratio` is the Bühlmann posterior of on-the-books vs expected at this lead time."""
     ratio = _safe(inp.pace_ratio, ONE, lo=ZERO)
-    z = _safe(inp.credibility, ZERO, lo=ZERO, hi=ONE)
-    m = ONE + z * (ratio - ONE)
+    m = ratio
     return _bounded("pace", m, params, {"pace_ratio": _ev(ratio)})
 
 
