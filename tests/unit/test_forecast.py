@@ -10,7 +10,7 @@ import numpy as np
 import pytest
 
 from app.config import SOURCE_DB
-from app.db.conn import connect
+from app.db.conn import connect_readonly
 from app.forecast.panel import build_panel, day_number
 from app.forecast.pickup import origin_features
 from app.services.data import load_events
@@ -20,7 +20,7 @@ FORECAST_DIR = Path(__file__).resolve().parents[2] / "backend" / "src" / "app" /
 
 @lru_cache(maxsize=1)
 def events():
-    return load_events(connect(SOURCE_DB))
+    return load_events(connect_readonly(SOURCE_DB))
 
 
 def test_backtest_gate_matches_architecture():

@@ -30,6 +30,14 @@ def connect(path: Path | None = None) -> sqlite3.Connection:
     return conn
 
 
+def connect_readonly(path: Path) -> sqlite3.Connection:
+    """Open a database strictly read-only (URI mode=ro, no pragmas that write). Used for the organiser's
+    APS-02.db, which must stay byte-identical to SHA256SUMS.txt."""
+    conn = sqlite3.connect(f"file:{path.as_posix()}?mode=ro", uri=True, check_same_thread=False)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+
 def get_conn() -> sqlite3.Connection:
     """One connection per thread (FastAPI runs sync endpoints in a thread pool)."""
     conn = getattr(_local, "conn", None)
