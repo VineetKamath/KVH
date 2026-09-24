@@ -53,6 +53,14 @@ def catalog_rooms(city_id: str = Path(..., pattern=r"^cty_[0-9a-f]{6,16}$"),
     return catalog.rooms(conn, city_id)
 
 
+@public.get("/catalog/rooms/{room_id}")
+def catalog_room(room_id: str = Path(..., pattern=ROOM_RE), conn: sqlite3.Connection = Depends(db)) -> dict:
+    meta = catalog.room_meta(conn, room_id)
+    if meta.get("hotel_name") is None:
+        raise invalid_id("room")
+    return meta
+
+
 @public.post("/quote")
 def create_quote(req: M.QuoteRequest, conn: sqlite3.Connection = Depends(db)) -> Response:
     body = quotes.get_or_create(conn, req.entity_id, req.checkin_date, req.checkout_date, req.party_size, req.session_id,

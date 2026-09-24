@@ -1,0 +1,63 @@
+{
+ "brand": "Rate Ledger",
+ "tagline": "Honest prices for every night",
+ "nav": {
+  "stays": "Stays",
+  "desk": "Revenue desk"
+ },
+ "search": {
+  "where": "Where are you staying?",
+  "city": "City",
+  "checkin": "Check-in",
+  "checkout": "Check-out",
+  "guests": "Guests",
+  "find": "Show rooms",
+  "nights_one": "{{count}} night",
+  "nights_other": "{{count}} nights",
+  "window": "Bookable {{from}} – {{to}}"
+ },
+ "results": {
+  "title": "Rooms in {{city}}",
+  "from": "from",
+  "per_night": "per night",
+  "stars": "{{count}}-star",
+  "centre": "{{km}} km from centre",
+  "price_trail": "90-night price trail",
+  "choose": "See price",
+  "empty": "No rooms are bookable here yet."
+ },
+ "quote": {
+  "boarding": "Price pass",
+  "held": "Price held",
+  "held_note": "This price will not move while you decide.",
+  "expired": "Hold expired — search again for a fresh price",
+  "total": "Total",
+  "nightly": "Night by night",
+  "why": "Why this price?",
+  "hide": "Hide",
+  "book": "Book this price",
+  "booked": "Booked",
+  "booked_note": "Your price is on record.",
+  "compare": "Open in a new tab",
+  "compare_note": "Same search, same price, same pass number.",
+  "pass_no": "Pass no.",
+  "guests": "Guests",
+  "stay": "Stay",
+  "low_confidence": "Demand is hard to read for these dates, so the price stays close to the base rate.",
+  "source_llm": "Written by AI from the engine's numbers, checked digit by digit",
+  "source_template": "Written from the engine's numbers"
+ },
+ "errors": {
+  "generic": "Something went wrong. Please try again.",
+  "sold_out": "Sold out on one of those nights.",
+  "constraint_infeasible": "Those dates are not available for booking.",
+  "rate_limited": "Too many requests — wait a moment.",
+  "hold_expired": "This price hold expired. Search again for a fresh price."
+ },
+ "lang": {
+  "en-IN": "English",
+  "hi": "हिन्दी",
+  "kn": "ಕನ್ನಡ"
+ },
+ "footer": "Every price stays inside limits the hotel sets, and every number is computed by the pricing engine."
+}

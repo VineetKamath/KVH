@@ -1,0 +1,31 @@
+/* The Rate Ledger — design tokens. Light theme only. Every colour in the UI comes from here. */
+:root {
+  --paper: #fbf8f3;
+  --paper-deep: #f4efe6;
+  --surface: #ffffff;
+  --ink: #1b2430;
+  --ink-muted: #5b6472;
+  --ink-faint: #8a919c;
+  --rule: #e7e1d6;
+  --rule-strong: #d6cdbd;
+  --indigo: #2f4b8f;
+  --indigo-ink: #243a70;
+  --indigo-wash: #eef1f8;
+  --band: #2f4b8f14;
+  --saffron: #e0891b;
+  --saffron-text: #a55f0b;
+  --saffron-wash: #fcf2e3;
+  --teal: #1f7a6d;
+  --teal-wash: #e8f3f1;
+  --plum: #7a3e6e;
+  --plum-wash: #f5ecf3;
+  --slate: #4a5568;
+  --slate-wash: #eef0f3;
+  --vermilion: #c8452f;
+  --vermilion-wash: #fbece9;
+  --radius: 6px;
+  --shadow-drawer: 0 18px 48px -18px rgba(27, 36, 48, 0.28);
+  --font-display: "Fraunces Variable", "Fraunces", Georgia, serif;
+  --font-ui: "IBM Plex Sans", "Noto Sans Devanagari", "Noto Sans Kannada", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+}
